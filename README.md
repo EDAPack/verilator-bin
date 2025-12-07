@@ -1,43 +1,15 @@
 # verilator-bin
-Binary build of Verilator for various platforms
 
-## Prerequisites
+Binary build of Verilator for various platforms. This build also includes an 
+installation of the [Bitwuzla](https://github.com/bitwuzla/bitwuzla) SMT solver
+to support constrained randomization, and a compatible version of the 
+[UVM](https://www.accellera.org/downloads/standards/uvm) library.
 
-### Ubuntu/Debian
-```bash
-sudo apt-get install -y cmake build-essential autoconf flex bison \
-    help2man python3 python3-venv git
-```
+## Release Scheme
+verilator-bin provides weekly builds of Verilator top-of-trunk. These releases
+are generally marked as pre-release.
 
-### CentOS/RHEL
-```bash
-sudo yum install -y cmake gcc gcc-c++ autoconf flex bison \
-    help2man python3 git
-```
+verilator-bin also provides tagged builds of Verilator releases.
 
-**Note:** GMP and MPFR are automatically downloaded and built by the CMake build system.
+The latest most-stable build is tagged 'latest'.
 
-## Building
-
-### Build with tagged releases (default branches):
-```bash
-mkdir build && cd build
-cmake .. -DUSE_LATEST_BRANCH=OFF
-make -j$(nproc)
-```
-
-### Build with latest main/master branches:
-```bash
-mkdir build && cd build
-cmake .. -DUSE_LATEST_BRANCH=ON
-make -j$(nproc)
-```
-
-### Build with specific tags:
-```bash
-mkdir build && cd build
-cmake .. -DVERILATOR_TAG=v5.030 -DBITWUZLA_TAG=0.6.0
-make -j$(nproc)
-```
-
-The built binaries will be in `build/install/`

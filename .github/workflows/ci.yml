@@ -250,6 +250,10 @@ jobs:
                 echo "platform: ${{ matrix.platform }}"
                 echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
                 echo "vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}"
+            - name: Debug environment
+              shell: msys2 {0}
+              run: |
+                ./scripts/debug-mingw-env.sh
             - name: build
               shell: msys2 {0}
               env:

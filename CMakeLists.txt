@@ -69,8 +69,8 @@ message(STATUS "Building with Verilator: ${VERILATOR_GIT_TAG}")
 if(IS_WINDOWS)
   ExternalProject_Add(python-venv
     DOWNLOAD_COMMAND ""
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "python3 -m venv <BINARY_DIR>/venv || python -m venv <BINARY_DIR>/venv"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "<BINARY_DIR>/venv/bin/pip install meson ninja || <BINARY_DIR>/venv/Scripts/pip install meson ninja"
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "python3 -m venv <BINARY_DIR>/venv || python -m venv <BINARY_DIR>/venv"
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "<BINARY_DIR>/venv/bin/pip install meson ninja || <BINARY_DIR>/venv/Scripts/pip install meson ninja"
     INSTALL_COMMAND ""
     BUILD_IN_SOURCE 1
   )
@@ -90,13 +90,14 @@ endif()
 if(IS_MINGW)
   # MinGW-specific build: GMP needs special handling for MinGW
   # Force ABI=64 and disable assembly to avoid the long long reliability test issues
+  # Need to ensure PATH includes MinGW bin directories
   ExternalProject_Add(gmp
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ ABI=64 ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32 --disable-assembly"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ ABI=64 CFLAGS='-O2' CXXFLAGS='-O2' ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32 --disable-assembly"
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
 elseif(IS_CYGWIN)
@@ -133,9 +134,9 @@ if(IS_MINGW)
     URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
     URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX} --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ CFLAGS='-O2' CXXFLAGS='-O2' ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX} --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
 elseif(IS_CYGWIN)
@@ -173,9 +174,9 @@ if(IS_MINGW)
     DEPENDS python-venv gmp mpfr
     GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
     GIT_TAG ${BITWUZLA_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && export CFLAGS=-I${CMAKE_INSTALL_PREFIX}/include && export CPPFLAGS=-I${CMAKE_INSTALL_PREFIX}/include && export LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && export CFLAGS=-I${CMAKE_INSTALL_PREFIX}/include && export CPPFLAGS=-I${CMAKE_INSTALL_PREFIX}/include && export LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared"
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
     BUILD_IN_SOURCE 1
   )
 elseif(IS_CYGWIN)
@@ -231,9 +232,9 @@ if(IS_WINDOWS)
     DEPENDS bitwuzla
     GIT_REPOSITORY https://github.com/verilator/verilator.git
     GIT_TAG ${VERILATOR_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
 else()
@@ -268,10 +269,10 @@ if(IS_WINDOWS)
     BUILD_COMMAND ""
     INSTALL_COMMAND 
       ${CMAKE_COMMAND} -E echo "Running post-install cleanup..."
-      COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
+      COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
+      COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
+      COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
+      COMMAND ${CMAKE_COMMAND} -E env PATH=$ENV{PATH} ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
   )
 else()
   ExternalProject_Add(post-install

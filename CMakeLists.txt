@@ -295,8 +295,8 @@ if(IS_WINDOWS)
       COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
       COMMAND ${CMAKE_COMMAND} -E echo "Creating include symlink for Windows Verilator compatibility..."
       COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX} && rm -rf include && ln -s share/verilator/include include"
-      COMMAND ${CMAKE_COMMAND} -E echo "Creating bin directory with helper scripts..."
-      COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX}/bin && cp -f ../share/verilator/bin/* . 2>/dev/null || true"
+      COMMAND ${CMAKE_COMMAND} -E echo "Copying Verilator helper scripts to bin directory..."
+      COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX}/bin && cp -f ../share/verilator/bin/verilator_includer ../share/verilator/bin/verilator_ccache_report . 2>/dev/null || true"
   )
   
   # Add smoke test to validate the installation

@@ -7,8 +7,10 @@ root=$(pwd)
 #********************************************************************
 if test $(uname -s) = "Linux"; then
     yum update -y
+    # Install perl-core for complete Perl installation including FindBin module
+    # which is required by Verilator wrapper scripts
     yum install -y glibc-static wget flex bison jq help2man \
-        cmake3 autoconf make gcc gcc-c++ git
+        cmake3 autoconf make gcc gcc-c++ git perl-core
 
     if test -z $image; then
         image=linux

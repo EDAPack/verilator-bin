@@ -296,12 +296,13 @@ if(IS_WINDOWS)
   )
   
   # Add smoke test to validate the installation
+  # On Windows with MSYS/MinGW, convert Windows path to Unix format to avoid : being treated as separator
   ExternalProject_Add(smoke-test
     DEPENDS post-install
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_SOURCE_DIR}/tests && PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH ./run_smoke_test.sh"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_SOURCE_DIR}/tests && PATH=$(${BASH_EXECUTABLE} -c 'cd ${CMAKE_INSTALL_PREFIX}/bin && pwd'):$PATH ./run_smoke_test.sh"
   )
 else()
   ExternalProject_Add(post-install

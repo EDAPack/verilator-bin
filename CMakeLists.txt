@@ -119,11 +119,12 @@ elseif(IS_CYGWIN)
   )
 else()
   # Unix/Linux/macOS build
+  # For manylinux containers, use --disable-assembly to avoid runtime test failures
   ExternalProject_Add(gmp
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
     ${EXTRACT_TIMESTAMP_ARG}
-    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --disable-assembly
     BUILD_COMMAND make -j${NPROC}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1

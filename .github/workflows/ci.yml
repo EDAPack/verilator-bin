@@ -244,9 +244,11 @@ jobs:
                   mingw-w64-${{ matrix.arch }}-gmp \
                   mingw-w64-${{ matrix.arch }}-mpfr \
                   flex bison autoconf automake tar help2man
-                # Check if FlexLexer.h is accessible
-                ls -la /mingw64/include/FlexLexer.h || echo "FlexLexer.h not in mingw64"
-                find /usr/include -name "FlexLexer.h" || echo "FlexLexer.h not in /usr/include"
+                # FlexLexer.h is in /usr/include but MinGW gcc looks in /mingw64/include
+                # Create a symlink so it can be found
+                ln -sf /usr/include/FlexLexer.h /mingw64/include/FlexLexer.h || true
+                ln -sf /usr/include/FlexLexer.h /mingw32/include/FlexLexer.h || true
+                echo "FlexLexer.h linked to MinGW include directories"
             - name: print
               run: |
                 echo "msystem: ${{ matrix.msystem }}"

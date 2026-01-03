@@ -5,6 +5,13 @@ include(ExternalProject)
 include(ProcessorCount)
 ProcessorCount(NPROC)
 
+# Check CMake version for DOWNLOAD_EXTRACT_TIMESTAMP support (added in 3.24)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+  set(EXTRACT_TIMESTAMP_ARG DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+else()
+  set(EXTRACT_TIMESTAMP_ARG "")
+endif()
+
 # Options to control build behavior
 option(USE_LATEST_BRANCH "Use latest main branch instead of tagged release" ON)
 set(VERILATOR_TAG "" CACHE STRING "Specific Verilator tag to use (overrides USE_LATEST_BRANCH)")
@@ -102,7 +109,7 @@ elseif(IS_CYGWIN)
   ExternalProject_Add(gmp
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${EXTRACT_TIMESTAMP_ARG}
     CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx"
     BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
@@ -113,7 +120,7 @@ else()
   ExternalProject_Add(gmp
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${EXTRACT_TIMESTAMP_ARG}
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx
     BUILD_COMMAND make -j${NPROC}
     INSTALL_COMMAND make install
@@ -140,7 +147,7 @@ elseif(IS_CYGWIN)
     DEPENDS gmp
     URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
     URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${EXTRACT_TIMESTAMP_ARG}
     CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}"
     BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
@@ -152,7 +159,7 @@ else()
     DEPENDS gmp
     URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
     URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${EXTRACT_TIMESTAMP_ARG}
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}
     BUILD_COMMAND make -j${NPROC}
     INSTALL_COMMAND make install
@@ -249,7 +256,7 @@ endif()
 # Fetch and install UVM
 ExternalProject_Add(uvm
   URL https://www.accellera.org/images/downloads/standards/uvm/Accellera-1800.2-2017-1.0.tar.gz
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  ${EXTRACT_TIMESTAMP_ARG}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
   INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_INSTALL_PREFIX}/share/uvm

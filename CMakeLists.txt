@@ -88,16 +88,14 @@ endif()
 # Use local cached copy to avoid network issues
 # Build both static and shared libraries so meson can find them
 if(IS_MINGW)
-  # MinGW-specific build: GMP needs special handling for MinGW
-  # Force ABI=64 and disable assembly to avoid the long long reliability test issues
+  # MinGW-specific: Use system-installed GMP from MSYS2 packages
+  # Building GMP from source on MinGW has long-standing reliability test issues
+  # We already install mingw-w64-*-gmp in the workflow
   ExternalProject_Add(gmp
-    URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
-    URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ ABI=64 CFLAGS='-O2' CXXFLAGS='-O2' ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32 --disable-assembly"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
-    BUILD_IN_SOURCE 1
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E echo "Using system GMP from MSYS2"
   )
 elseif(IS_CYGWIN)
   # Cygwin-specific build
@@ -127,16 +125,14 @@ endif()
 # Use local cached copy to avoid network issues
 # Build both static and shared libraries so meson can find them
 if(IS_MINGW)
-  # MinGW-specific build
+  # MinGW-specific: Use system-installed MPFR from MSYS2 packages  
+  # We already install mingw-w64-*-mpfr in the workflow
   ExternalProject_Add(mpfr
     DEPENDS gmp
-    URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
-    URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ CFLAGS='-O2' CXXFLAGS='-O2' ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX} --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
-    BUILD_IN_SOURCE 1
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E echo "Using system MPFR from MSYS2"
   )
 elseif(IS_CYGWIN)
   # Cygwin-specific build
@@ -168,12 +164,13 @@ endif()
 # Use meson directly with --wrap-mode=nofallback to prevent fallback to wrap for GMP/MPFR
 # Pass pkg-config-path and native-file for proper library detection on macOS
 if(IS_MINGW)
-  # MinGW-specific: Use shared libraries and ensure proper paths
+  # MinGW-specific: Use shared libraries and system GMP/MPFR
+  # GMP and MPFR are already installed from MSYS2 packages in /mingw64
   ExternalProject_Add(bitwuzla
     DEPENDS python-venv gmp mpfr
     GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
     GIT_TAG ${BITWUZLA_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && export CFLAGS=-I${CMAKE_INSTALL_PREFIX}/include && export CPPFLAGS=-I${CMAKE_INSTALL_PREFIX}/include && export LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared"
     BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
     BUILD_IN_SOURCE 1

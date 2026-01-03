@@ -21,13 +21,19 @@ if [ ! -f "obj_dir/simv" ]; then
 fi
 
 echo "Running simulation..."
-timeout 5s obj_dir/simv > output.log 2>&1 || {
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -eq 124 ]; then
-        echo "ERROR: Simulation timed out after 5 seconds"
-        exit 1
-    fi
-}
+# Use timeout if available, otherwise run directly (simulations should exit quickly)
+if command -v timeout >/dev/null 2>&1; then
+    timeout 5s obj_dir/simv > output.log 2>&1 || {
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -eq 124 ]; then
+            echo "ERROR: Simulation timed out after 5 seconds"
+            exit 1
+        fi
+    }
+else
+    # No timeout available (e.g., macOS), run directly
+    obj_dir/simv > output.log 2>&1
+fi
 
 echo "Checking output..."
 if grep -q "Hello World" output.log; then

@@ -8,6 +8,31 @@ WORK_DIR="${SCRIPT_DIR}/smoke_test_work"
 echo "=== Verilator Smoke Test ==="
 echo "Compiling smoke.sv with Verilator..."
 
+# On Windows, verify Verilator installation structure first
+if [[ "$(uname -s)" =~ MINGW|MSYS ]]; then
+    echo "Windows detected - checking Verilator installation structure..."
+    VERILATOR_BIN=$(command -v verilator || command -v verilator.exe)
+    if [ -n "$VERILATOR_BIN" ]; then
+        VERILATOR_DIR=$(dirname "$VERILATOR_BIN")
+        echo "Verilator binary location: $VERILATOR_BIN"
+        echo "Verilator directory: $VERILATOR_DIR"
+        echo "Searching for verilated_std_waiver.vlt..."
+        find "$VERILATOR_DIR/.." -name "verilated_std_waiver.vlt" 2>/dev/null || echo "  Not found"
+        echo "Searching for verilated_std.sv..."
+        find "$VERILATOR_DIR/.." -name "verilated_std.sv" 2>/dev/null || echo "  Not found"
+        echo "Listing verilator directory structure:"
+        ls -la "$VERILATOR_DIR/.." 2>/dev/null || echo "  Cannot list"
+        if [ -d "$VERILATOR_DIR/../share" ]; then
+            echo "Contents of share directory:"
+            ls -la "$VERILATOR_DIR/../share" 2>/dev/null
+        fi
+        if [ -d "$VERILATOR_DIR/../include" ]; then
+            echo "Contents of include directory:"
+            ls -la "$VERILATOR_DIR/../include" 2>/dev/null | head -20
+        fi
+    fi
+fi
+
 # Find verilator - check both with and without .exe extension
 VERILATOR_CMD="verilator"
 if ! command -v verilator >/dev/null 2>&1; then

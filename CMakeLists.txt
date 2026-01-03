@@ -15,6 +15,18 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation directory" FORCE)
 endif()
 
+# Detect Windows/MSYS2/Cygwin environment
+if(WIN32 OR MSYS OR CYGWIN)
+  set(IS_WINDOWS TRUE)
+  # Find bash for running configure scripts on Windows
+  find_program(BASH_EXECUTABLE bash REQUIRED)
+  message(STATUS "Using bash: ${BASH_EXECUTABLE}")
+  set(SHELL_COMMAND ${BASH_EXECUTABLE} -c)
+else()
+  set(IS_WINDOWS FALSE)
+  set(SHELL_COMMAND "")
+endif()
+
 # Determine Bitwuzla version/branch
 if(BITWUZLA_TAG)
   set(BITWUZLA_GIT_TAG ${BITWUZLA_TAG})
@@ -39,86 +51,146 @@ message(STATUS "Building with Bitwuzla: ${BITWUZLA_GIT_TAG}")
 message(STATUS "Building with Verilator: ${VERILATOR_GIT_TAG}")
 
 # Create a Python virtual environment for meson/ninja
-ExternalProject_Add(python-venv
-  DOWNLOAD_COMMAND ""
-  CONFIGURE_COMMAND python3 -m venv <BINARY_DIR>/venv
-  BUILD_COMMAND <BINARY_DIR>/venv/bin/pip install meson ninja
-  INSTALL_COMMAND ""
-  BUILD_IN_SOURCE 1
-)
+if(IS_WINDOWS)
+  ExternalProject_Add(python-venv
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "python3 -m venv <BINARY_DIR>/venv || python -m venv <BINARY_DIR>/venv"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "<BINARY_DIR>/venv/bin/pip install meson ninja || <BINARY_DIR>/venv/Scripts/pip install meson ninja"
+    INSTALL_COMMAND ""
+    BUILD_IN_SOURCE 1
+  )
+else()
+  ExternalProject_Add(python-venv
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND python3 -m venv <BINARY_DIR>/venv
+    BUILD_COMMAND <BINARY_DIR>/venv/bin/pip install meson ninja
+    INSTALL_COMMAND ""
+    BUILD_IN_SOURCE 1
+  )
+endif()
 
 # Build GMP (required by MPFR and Bitwuzla)
 # Use local cached copy to avoid network issues
 # Build both static and shared libraries so meson can find them
-ExternalProject_Add(gmp
-  URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
-  URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx
-  BUILD_COMMAND make -j${NPROC}
-  INSTALL_COMMAND make install
-  BUILD_IN_SOURCE 1
-)
+if(IS_WINDOWS)
+  ExternalProject_Add(gmp
+    URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
+    URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make install"
+    BUILD_IN_SOURCE 1
+  )
+else()
+  ExternalProject_Add(gmp
+    URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
+    URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx
+    BUILD_COMMAND make -j${NPROC}
+    INSTALL_COMMAND make install
+    BUILD_IN_SOURCE 1
+  )
+endif()
 
 # Build MPFR (required by Bitwuzla, depends on GMP)
 # Use local cached copy to avoid network issues
 # Build both static and shared libraries so meson can find them
-ExternalProject_Add(mpfr
-  DEPENDS gmp
-  URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
-  URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}
-  BUILD_COMMAND make -j${NPROC}
-  INSTALL_COMMAND make install
-  BUILD_IN_SOURCE 1
-)
+if(IS_WINDOWS)
+  ExternalProject_Add(mpfr
+    DEPENDS gmp
+    URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
+    URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make install"
+    BUILD_IN_SOURCE 1
+  )
+else()
+  ExternalProject_Add(mpfr
+    DEPENDS gmp
+    URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
+    URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}
+    BUILD_COMMAND make -j${NPROC}
+    INSTALL_COMMAND make install
+    BUILD_IN_SOURCE 1
+  )
+endif()
 
 # Build Bitwuzla
 # Use meson directly with --wrap-mode=nofallback to prevent fallback to wrap for GMP/MPFR
 # Pass pkg-config-path and native-file for proper library detection on macOS
-ExternalProject_Add(bitwuzla
-  DEPENDS python-venv gmp mpfr
-  GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
-  GIT_TAG ${BITWUZLA_GIT_TAG}
-  CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env 
-    PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
-    PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}
-    LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
-    DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
-    LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LIBRARY_PATH}
-    meson setup <SOURCE_DIR>/build <SOURCE_DIR> 
-      --prefix=${CMAKE_INSTALL_PREFIX} 
-      -Dfpexp=false 
-      --default-library=shared
-      --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
-      -Dc_args=-I${CMAKE_INSTALL_PREFIX}/include
-      -Dcpp_args=-I${CMAKE_INSTALL_PREFIX}/include
-      -Dc_link_args=-L${CMAKE_INSTALL_PREFIX}/lib
-      -Dcpp_link_args=-L${CMAKE_INSTALL_PREFIX}/lib
-  BUILD_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR>/build ${CMAKE_COMMAND} -E env 
-    PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
-    LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
-    DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
-    meson compile
-  INSTALL_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR>/build ${CMAKE_COMMAND} -E env 
-    PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
-    LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
-    DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
-    meson install
-  BUILD_IN_SOURCE 1
-)
+if(IS_WINDOWS)
+  # On Windows, ensure meson and ninja are available
+  ExternalProject_Add(bitwuzla
+    DEPENDS python-venv gmp mpfr
+    GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
+    GIT_TAG ${BITWUZLA_GIT_TAG}
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig -Dc_args=-I${CMAKE_INSTALL_PREFIX}/include -Dcpp_args=-I${CMAKE_INSTALL_PREFIX}/include -Dc_link_args=-L${CMAKE_INSTALL_PREFIX}/lib -Dcpp_link_args=-L${CMAKE_INSTALL_PREFIX}/lib"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
+    BUILD_IN_SOURCE 1
+  )
+else()
+  ExternalProject_Add(bitwuzla
+    DEPENDS python-venv gmp mpfr
+    GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
+    GIT_TAG ${BITWUZLA_GIT_TAG}
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env 
+      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
+      PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}
+      LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
+      DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
+      LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LIBRARY_PATH}
+      meson setup <SOURCE_DIR>/build <SOURCE_DIR> 
+        --prefix=${CMAKE_INSTALL_PREFIX} 
+        -Dfpexp=false 
+        --default-library=shared
+        --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+        -Dc_args=-I${CMAKE_INSTALL_PREFIX}/include
+        -Dcpp_args=-I${CMAKE_INSTALL_PREFIX}/include
+        -Dc_link_args=-L${CMAKE_INSTALL_PREFIX}/lib
+        -Dcpp_link_args=-L${CMAKE_INSTALL_PREFIX}/lib
+    BUILD_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR>/build ${CMAKE_COMMAND} -E env 
+      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
+      LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
+      DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
+      meson compile
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR>/build ${CMAKE_COMMAND} -E env 
+      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
+      LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
+      DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
+      meson install
+    BUILD_IN_SOURCE 1
+  )
+endif()
 
 # Build Verilator
-ExternalProject_Add(verilator
-  DEPENDS bitwuzla
-  GIT_REPOSITORY https://github.com/verilator/verilator.git
-  GIT_TAG ${VERILATOR_GIT_TAG}
-  CONFIGURE_COMMAND autoconf COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla
-  BUILD_COMMAND make -j${NPROC}
-  INSTALL_COMMAND make install
-  BUILD_IN_SOURCE 1
-)
+if(IS_WINDOWS)
+  ExternalProject_Add(verilator
+    DEPENDS bitwuzla
+    GIT_REPOSITORY https://github.com/verilator/verilator.git
+    GIT_TAG ${VERILATOR_GIT_TAG}
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make install"
+    BUILD_IN_SOURCE 1
+  )
+else()
+  ExternalProject_Add(verilator
+    DEPENDS bitwuzla
+    GIT_REPOSITORY https://github.com/verilator/verilator.git
+    GIT_TAG ${VERILATOR_GIT_TAG}
+    CONFIGURE_COMMAND autoconf COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla
+    BUILD_COMMAND make -j${NPROC}
+    INSTALL_COMMAND make install
+    BUILD_IN_SOURCE 1
+  )
+endif()
 
 # Fetch and install UVM
 ExternalProject_Add(uvm
@@ -131,16 +203,31 @@ ExternalProject_Add(uvm
 )
 
 # Post-install cleanup and modifications
-ExternalProject_Add(post-install
-  DEPENDS verilator uvm
-  DOWNLOAD_COMMAND ""
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND ""
-  INSTALL_COMMAND 
-    ${CMAKE_COMMAND} -E echo "Running post-install cleanup..."
-    COMMAND bash -c "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
-    COMMAND bash -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
-    COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_INSTALL_PREFIX}/lib
-    COMMAND bash -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
-    COMMAND bash -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
-)
+if(IS_WINDOWS)
+  ExternalProject_Add(post-install
+    DEPENDS verilator uvm
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND 
+      ${CMAKE_COMMAND} -E echo "Running post-install cleanup..."
+      COMMAND ${BASH_EXECUTABLE} -lc "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
+      COMMAND ${BASH_EXECUTABLE} -lc "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
+      COMMAND ${BASH_EXECUTABLE} -lc "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
+      COMMAND ${BASH_EXECUTABLE} -lc "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
+  )
+else()
+  ExternalProject_Add(post-install
+    DEPENDS verilator uvm
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND 
+      ${CMAKE_COMMAND} -E echo "Running post-install cleanup..."
+      COMMAND bash -c "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
+      COMMAND bash -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
+      COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_INSTALL_PREFIX}/lib
+      COMMAND bash -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
+      COMMAND bash -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
+  )
+endif()

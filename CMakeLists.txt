@@ -89,12 +89,12 @@ endif()
 # Build both static and shared libraries so meson can find them
 if(IS_MINGW)
   # MinGW-specific build: GMP needs special handling for MinGW
-  # We need to help GMP's configure by being explicit about the compiler and flags
+  # Force ABI=64 and disable assembly to avoid the long long reliability test issues
   ExternalProject_Add(gmp
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CC=gcc CXX=g++ ABI=64 ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-shared --disable-static --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32 --disable-assembly"
     BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1

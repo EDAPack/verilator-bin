@@ -195,24 +195,22 @@ jobs:
             - uses: msys2/setup-msys2@v2
               with:
                 msystem: ${{ matrix.msystem }}
-                update: true
+                update: false
                 install: >-
                     base-devel
                     mingw-w64-${{ matrix.arch }}-toolchain
                     mingw-w64-${{ matrix.arch }}-cmake
                     mingw-w64-${{ matrix.arch }}-python
-                    mingw-w64-${{ matrix.arch }}-python-pip
-                    mingw-w64-${{ matrix.arch }}-meson
-                    mingw-w64-${{ matrix.arch }}-ninja
-                    mingw-w64-${{ matrix.arch }}-flex
-                    mingw-w64-${{ matrix.arch }}-bison
-                    mingw-w64-${{ matrix.arch }}-gmp
-                    mingw-w64-${{ matrix.arch }}-mpfr
-                    autoconf
-                    automake
                     git
-                    tar
-                    help2man
+            - name: Install additional packages
+              shell: msys2 {0}
+              run: |
+                pacman -S --noconfirm \
+                  mingw-w64-${{ matrix.arch }}-meson \
+                  mingw-w64-${{ matrix.arch }}-ninja \
+                  mingw-w64-${{ matrix.arch }}-gmp \
+                  mingw-w64-${{ matrix.arch }}-mpfr \
+                  flex bison autoconf automake tar help2man
             - name: print
               run: |
                 echo "msystem: ${{ matrix.msystem }}"

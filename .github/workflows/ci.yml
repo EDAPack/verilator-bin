@@ -241,11 +241,9 @@ jobs:
                 pacman -S --noconfirm \
                   mingw-w64-${{ matrix.arch }}-meson \
                   mingw-w64-${{ matrix.arch }}-ninja \
-                  mingw-w64-${{ matrix.arch }}-flex \
-                  mingw-w64-${{ matrix.arch }}-bison \
                   mingw-w64-${{ matrix.arch }}-gmp \
                   mingw-w64-${{ matrix.arch }}-mpfr \
-                  autoconf automake tar help2man
+                  flex bison autoconf automake tar help2man
             - name: print
               run: |
                 echo "msystem: ${{ matrix.msystem }}"

@@ -19,9 +19,12 @@ if ! command -v verilator >/dev/null 2>&1; then
         echo "Checking for verilator in PATH directories:"
         IFS=':' read -ra PATHARRAY <<< "$PATH"
         for dir in "${PATHARRAY[@]}"; do
+            echo "  Checking: [$dir]"
             if [ -d "$dir" ]; then
-                echo "  $dir:"
-                ls -la "$dir" 2>/dev/null | grep -i veril || echo "    (no verilator found)"
+                echo "    Directory exists, listing veril* files:"
+                ls -la "$dir" 2>/dev/null | grep -i veril || echo "      (no verilator found)"
+            else
+                echo "    Directory does not exist or is not accessible"
             fi
         done
         exit 1

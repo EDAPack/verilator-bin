@@ -249,63 +249,65 @@ jobs:
                 if-no-files-found: error
                 retention-days: 7
 
-    build-windows-cygwin:
-        runs-on: windows-latest
-        needs: version-check
-        strategy:
-          matrix:
-            include:
-              - arch: x86_64
-                platform: cygwin64
-              - arch: x86
-                platform: cygwin32
-        steps:
-            - uses: actions/checkout@v4
-            - uses: cygwin/cygwin-install-action@v4
-              with:
-                platform: ${{ matrix.arch }}
-                packages: >-
-                  gcc-core
-                  gcc-g++
-                  make
-                  cmake
-                  flex
-                  bison
-                  autoconf
-                  automake
-                  help2man
-                  python39
-                  python39-pip
-                  git
-                  tar
-                  gzip
-                  libgmp-devel
-                  libmpfr-devel
-            - name: print
-              run: |
-                echo "platform: ${{ matrix.platform }}"
-                echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
-                echo "vlt_tag: ${{ needs.version-check.outputs.vlt_tag }}"
-                echo "rls_version: ${{ needs.version-check.outputs.rls_version }}"
-            - name: build
-              shell: C:\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                image: ${{ matrix.platform }}
-                bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}
-                vlt_latest_rls: ${{ needs.version-check.outputs.vlt_tag }}
-                rls_version: ${{ needs.version-check.outputs.rls_version }}
-                CHERE_INVOKING: 1
-              run: |
-                cd "$GITHUB_WORKSPACE"
-                ./scripts/build.sh
-            - name: upload artifact
-              uses: actions/upload-artifact@v4
-              with:
-                name: "verilator-${{ matrix.platform }}"
-                path: "release/verilator-${{ matrix.platform }}-*.tar.gz"
-                if-no-files-found: error
-                retention-days: 7
+    # Cygwin builds disabled due to jobserver semaphore issues with nested make
+    # See: https://github.com/EDAPack/verilator-bin/issues/XXX
+    # build-windows-cygwin:
+    #     runs-on: windows-latest
+    #     needs: version-check
+    #     strategy:
+    #       matrix:
+    #         include:
+    #           - arch: x86_64
+    #             platform: cygwin64
+    #           - arch: x86
+    #             platform: cygwin32
+    #     steps:
+    #         - uses: actions/checkout@v4
+    #         - uses: cygwin/cygwin-install-action@v4
+    #           with:
+    #             platform: ${{ matrix.arch }}
+    #             packages: >-
+    #               gcc-core
+    #               gcc-g++
+    #               make
+    #               cmake
+    #               flex
+    #               bison
+    #               autoconf
+    #               automake
+    #               help2man
+    #               python39
+    #               python39-pip
+    #               git
+    #               tar
+    #               gzip
+    #               libgmp-devel
+    #               libmpfr-devel
+    #         - name: print
+    #           run: |
+    #             echo "platform: ${{ matrix.platform }}"
+    #             echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
+    #             echo "vlt_tag: ${{ needs.version-check.outputs.vlt_tag }}"
+    #             echo "rls_version: ${{ needs.version-check.outputs.rls_version }}"
+    #         - name: build
+    #           shell: C:\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
+    #           env:
+    #             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #             image: ${{ matrix.platform }}
+    #             bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}
+    #             vlt_latest_rls: ${{ needs.version-check.outputs.vlt_tag }}
+    #             rls_version: ${{ needs.version-check.outputs.rls_version }}
+    #             CHERE_INVOKING: 1
+    #           run: |
+    #             cd "$GITHUB_WORKSPACE"
+    #             ./scripts/build.sh
+    #         - name: upload artifact
+    #           uses: actions/upload-artifact@v4
+    #           with:
+    #             name: "verilator-${{ matrix.platform }}"
+    #             path: "release/verilator-${{ matrix.platform }}-*.tar.gz"
+    #             if-no-files-found: error
+    #             retention-days: 7
 
     publish:
         runs-on: 'ubuntu-latest'
@@ -314,7 +316,7 @@ jobs:
         - build-linux-arm64
         - build-macos-arm64
         - build-windows-mingw
-        - build-windows-cygwin
+        # - build-windows-cygwin  # Disabled: jobserver issues need more work
         - version-check
         permissions:
             contents: write

@@ -119,32 +119,17 @@ elseif(IS_CYGWIN)
   )
 else()
   # Unix/Linux/macOS build
-  # For Linux manylinux containers, configure options to avoid runtime test failures:
-  # Use ABI=standard env var for Linux, but not macOS (macOS only accepts ABI=64 or ABI=32)
-  # --enable-fat: Use runtime CPU detection instead of compile-time tests
-  if(APPLE)
-    # macOS doesn't support ABI=standard, use --enable-fat only
-    ExternalProject_Add(gmp
-      URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
-      URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
-      ${EXTRACT_TIMESTAMP_ARG}
-      CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-fat
-      BUILD_COMMAND make -j${NPROC}
-      INSTALL_COMMAND make install
-      BUILD_IN_SOURCE 1
-    )
-  else()
-    # Linux: Use ABI=standard to skip problematic reliability tests
-    ExternalProject_Add(gmp
-      URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
-      URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
-      ${EXTRACT_TIMESTAMP_ARG}
-      CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env ABI=standard <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --enable-fat
-      BUILD_COMMAND make -j${NPROC}
-      INSTALL_COMMAND make install
-      BUILD_IN_SOURCE 1
-    )
-  endif()
+  # For manylinux containers: Set gcc_cv_c_long_long_reliable_test to "yes" to skip the test
+  # This avoids the runtime test failures in containerized environments
+  ExternalProject_Add(gmp
+    URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
+    URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
+    ${EXTRACT_TIMESTAMP_ARG}
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env gcc_cv_c_long_long_reliable_test=yes <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx
+    BUILD_COMMAND make -j${NPROC}
+    INSTALL_COMMAND make install
+    BUILD_IN_SOURCE 1
+  )
 endif()
 
 # Build MPFR (required by Bitwuzla, depends on GMP)

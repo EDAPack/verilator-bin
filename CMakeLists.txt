@@ -296,7 +296,7 @@ if(IS_WINDOWS)
       COMMAND ${CMAKE_COMMAND} -E echo "Creating include symlink for Windows Verilator compatibility..."
       COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX} && rm -rf include && ln -s share/verilator/include include"
       COMMAND ${CMAKE_COMMAND} -E echo "Creating bin directory with helper scripts..."
-      COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX}/bin && for f in ../share/verilator/bin/*; do ln -sf $f . 2>/dev/null || true; done"
+      COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX}/bin && cp -f ../share/verilator/bin/* . 2>/dev/null || true"
   )
   
   # Add smoke test to validate the installation

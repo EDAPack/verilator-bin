@@ -106,12 +106,14 @@ if(IS_MINGW)
   )
 elseif(IS_CYGWIN)
   # Cygwin-specific build
+  # Note: Cygwin has issues with jobserver semaphores when make is nested
+  # Use single-threaded make to avoid "invalid --jobserver-auth" errors
   ExternalProject_Add(gmp
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
     ${EXTRACT_TIMESTAMP_ARG}
     CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
@@ -143,13 +145,15 @@ if(IS_MINGW)
   )
 elseif(IS_CYGWIN)
   # Cygwin-specific build
+  # Note: Cygwin has issues with jobserver semaphores when make is nested
+  # Use single-threaded make to avoid "invalid --jobserver-auth" errors
   ExternalProject_Add(mpfr
     DEPENDS gmp
     URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
     URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
     ${EXTRACT_TIMESTAMP_ARG}
     CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
@@ -229,14 +233,27 @@ else()
 endif()
 
 # Build Verilator
-if(IS_WINDOWS)
-  # Windows-specific build (MinGW or Cygwin)
+if(IS_MINGW)
+  # MinGW-specific build  
   ExternalProject_Add(verilator
     DEPENDS bitwuzla
     GIT_REPOSITORY https://github.com/verilator/verilator.git
     GIT_TAG ${VERILATOR_GIT_TAG}
     CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
     BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
+    BUILD_IN_SOURCE 1
+  )
+elseif(IS_CYGWIN)
+  # Cygwin-specific build
+  # Note: Cygwin has issues with jobserver semaphores when make is nested
+  # Use single-threaded make to avoid "invalid --jobserver-auth" errors
+  ExternalProject_Add(verilator
+    DEPENDS bitwuzla
+    GIT_REPOSITORY https://github.com/verilator/verilator.git
+    GIT_TAG ${VERILATOR_GIT_TAG}
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )

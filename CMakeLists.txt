@@ -77,9 +77,9 @@ if(IS_WINDOWS)
     URL ${CMAKE_SOURCE_DIR}/deps/gmp-6.3.0.tar.xz
     URL_HASH SHA256=a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make install"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-cxx --build=x86_64-w64-mingw32"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
 else()
@@ -103,9 +103,9 @@ if(IS_WINDOWS)
     URL ${CMAKE_SOURCE_DIR}/deps/mpfr-4.2.2.tar.xz
     URL_HASH SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX}"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make install"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-gmp=${CMAKE_INSTALL_PREFIX} --build=x86_64-w64-mingw32"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
 else()
@@ -130,9 +130,9 @@ if(IS_WINDOWS)
     DEPENDS python-venv gmp mpfr
     GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
     GIT_TAG ${BITWUZLA_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig -Dc_args=-I${CMAKE_INSTALL_PREFIX}/include -Dcpp_args=-I${CMAKE_INSTALL_PREFIX}/include -Dc_link_args=-L${CMAKE_INSTALL_PREFIX}/lib -Dcpp_link_args=-L${CMAKE_INSTALL_PREFIX}/lib"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig -Dc_args=-I${CMAKE_INSTALL_PREFIX}/include -Dcpp_args=-I${CMAKE_INSTALL_PREFIX}/include -Dc_link_args=-L${CMAKE_INSTALL_PREFIX}/lib -Dcpp_link_args=-L${CMAKE_INSTALL_PREFIX}/lib"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
     BUILD_IN_SOURCE 1
   )
 else()
@@ -175,9 +175,9 @@ if(IS_WINDOWS)
     DEPENDS bitwuzla
     GIT_REPOSITORY https://github.com/verilator/verilator.git
     GIT_TAG ${VERILATOR_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make -j${NPROC}"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -lc "cd <SOURCE_DIR> && make install"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
 else()
@@ -211,10 +211,10 @@ if(IS_WINDOWS)
     BUILD_COMMAND ""
     INSTALL_COMMAND 
       ${CMAKE_COMMAND} -E echo "Running post-install cleanup..."
-      COMMAND ${BASH_EXECUTABLE} -lc "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -lc "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -lc "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -lc "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
+      COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
+      COMMAND ${BASH_EXECUTABLE} -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
+      COMMAND ${BASH_EXECUTABLE} -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
+      COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
   )
 else()
   ExternalProject_Add(post-install

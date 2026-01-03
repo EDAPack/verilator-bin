@@ -301,7 +301,7 @@ if(IS_WINDOWS)
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH && ${CMAKE_SOURCE_DIR}/tests/run_smoke_test.sh"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_SOURCE_DIR}/tests && PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH ./run_smoke_test.sh"
   )
 else()
   ExternalProject_Add(post-install

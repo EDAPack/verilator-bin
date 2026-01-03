@@ -176,6 +176,8 @@ jobs:
         - build-linux-x86_64
         - build-linux-arm64
         - build-macos-arm64
+        - build-windows-mingw
+        # - build-windows-cygwin  # Disabled: jobserver issues need more work
         - version-check
         permissions:
             contents: write
@@ -208,33 +210,140 @@ jobs:
               release/**/*.tar.gz
             fail_on_unmatched_files: true
 
-    # ci-windows:
+    build-windows-mingw:
+        runs-on: windows-latest
+        needs: version-check
+        strategy:
+          matrix:
+            include:
+              - msystem: MINGW64
+                arch: x86_64
+                platform: mingw64
+              - msystem: MINGW32
+                arch: i686
+                platform: mingw32
+        steps:
+            - uses: actions/checkout@v4
+            - uses: msys2/setup-msys2@v2
+              with:
+                msystem: ${{ matrix.msystem }}
+                update: false
+                install: >-
+                    base-devel
+                    mingw-w64-${{ matrix.arch }}-toolchain
+                    mingw-w64-${{ matrix.arch }}-cmake
+                    mingw-w64-${{ matrix.arch }}-python
+                    git
+            - name: Install additional packages
+              shell: msys2 {0}
+              run: |
+                pacman -S --noconfirm \
+                  mingw-w64-${{ matrix.arch }}-meson \
+                  mingw-w64-${{ matrix.arch }}-ninja \
+                  mingw-w64-${{ matrix.arch }}-gmp \
+                  mingw-w64-${{ matrix.arch }}-mpfr \
+                  flex bison autoconf automake tar help2man
+                # FlexLexer.h is in /usr/include but MinGW gcc looks in /mingw64/include
+                # Create a symlink so it can be found
+                ln -sf /usr/include/FlexLexer.h /mingw64/include/FlexLexer.h || true
+                ln -sf /usr/include/FlexLexer.h /mingw32/include/FlexLexer.h || true
+                echo "FlexLexer.h linked to MinGW include directories"
+            - name: print
+              run: |
+                echo "msystem: ${{ matrix.msystem }}"
+                echo "platform: ${{ matrix.platform }}"
+                echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
+                echo "vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}"
+            - name: Debug environment
+              shell: msys2 {0}
+              run: |
+                ./scripts/debug-mingw-env.sh
+            - name: build
+              shell: msys2 {0}
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                BUILD_NUM: ${{ github.run_id }}
+                image: ${{ matrix.platform }}
+                bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}
+                vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}
+              run: |
+                ./scripts/build.sh
+            - name: upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: "verilator-${{ matrix.platform }}"
+                path: "release/verilator-${{ matrix.platform }}-*.tar.gz"
+                if-no-files-found: error
+                retention-days: 7
+            - name: create pacman package
+              if: matrix.msystem == 'MINGW64'
+              shell: msys2 {0}
+              run: |
+                ./scripts/create-pacman-package.sh ${{ needs.version-check.outputs.rls_version }} ${{ matrix.platform }}
+            - name: upload pacman package
+              if: matrix.msystem == 'MINGW64'
+              uses: actions/upload-artifact@v4
+              with:
+                name: "verilator-${{ matrix.platform }}-pacman"
+                path: "release/*.pkg.tar.zst"
+                if-no-files-found: error
+                retention-days: 7
+
+    # Cygwin builds disabled due to jobserver semaphore issues with nested make
+    # See: https://github.com/EDAPack/verilator-bin/issues/XXX
+    # build-windows-cygwin:
     #     runs-on: windows-latest
+    #     needs: version-check
+    #     strategy:
+    #       matrix:
+    #         include:
+    #           - arch: x86_64
+    #             platform: cygwin64
+    #           - arch: x86
+    #             platform: cygwin32
     #     steps:
-    #         - uses: msys2/setup-msys2@v2
-    #           with:
-    #             update: true
-    #             install: >-
-    #                 gcc
-    #                 flex
-    #                 bison
-    #                 autotools
-    #                 help2man
-    #                 python3
     #         - uses: actions/checkout@v4
-    #         - name: Download source
-    #           shell: msys2 {0}
+    #         - uses: cygwin/cygwin-install-action@v4
+    #           with:
+    #             platform: ${{ matrix.arch }}
+    #             packages: >-
+    #               gcc-core
+    #               gcc-g++
+    #               make
+    #               cmake
+    #               flex
+    #               bison
+    #               autoconf
+    #               automake
+    #               help2man
+    #               python39
+    #               python39-pip
+    #               git
+    #               tar
+    #               gzip
+    #               libgmp-devel
+    #               libmpfr-devel
+    #         - name: print
     #           run: |
-    #             cwd=$(pwd)
-    #             inst=$cwd/verilator-windows-64
+    #             echo "platform: ${{ matrix.platform }}"
+    #             echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
+    #             echo "vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}"
+    #         - name: build
+    #           shell: C:\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
+    #           env:
+    #             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #             BUILD_NUM: ${{ github.run_id }}
+    #             image: ${{ matrix.platform }}
+    #             bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}
+    #             vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}
+    #             CHERE_INVOKING: 1
+    #           run: |
+    #             cd "$GITHUB_WORKSPACE"
     #             ./scripts/build.sh
-    #             wget https://github.com/verilator/verilator/archive/refs/tags/v5.030.tar.gz
-    #             tar xvf v5.030.tar.gz
-    #             cd verilator-5.030
-    #             autoconf
-    #             ./configure --prefix=$inst
-    #             make -j$(nproc)
-    #             make install
-    #             cd $cwd
-    #             cp -r $inst/share/verilator/include $inst
-    #             cp $inst/share/verilator/bin/verilator_includer $inst/bin
+    #         - name: upload artifact
+    #           uses: actions/upload-artifact@v4
+    #           with:
+    #             name: "verilator-${{ matrix.platform }}"
+    #             path: "release/verilator-${{ matrix.platform }}-*.tar.gz"
+    #             if-no-files-found: error
+    #             retention-days: 7

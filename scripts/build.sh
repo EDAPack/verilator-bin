@@ -131,7 +131,7 @@ if test "x${REMOVE_PREGEN}" = "x1"; then
 fi
 
 # Build
-make -j$(nproc)
+cmake --build . -j$(nproc)
 if test $? -ne 0; then exit 1; fi
 
 #********************************************************************

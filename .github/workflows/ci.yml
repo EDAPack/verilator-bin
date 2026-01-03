@@ -95,43 +95,43 @@ jobs:
     #             retention-days: 7
 
     # build-linux-arm64:
-        runs-on: 'ubuntu-24.04-arm'
-        needs: version-check
-        strategy:
-          matrix:
-            image: [manylinux_2_28_aarch64, manylinux_2_34_aarch64]
-        steps:
-            - uses: actions/checkout@v4
-            - name: print
-              run: |
-                echo "print"
-                echo "image: ${{ matrix.image }}"
-                echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
-                echo "vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}"
-            - name: build
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                BUILD_NUM: ${{ github.run_id }}
-                image: ${{ matrix.image }}
-                bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}
-                vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}
-              run: >
-                docker run --rm
-                --volume "$(pwd):/io"
-                --env BUILD_NUM
-                --env vlt_latest_rls
-                --env bwz_latest_rls
-                --env image
-                --workdir /io
-                quay.io/pypa/${{ matrix.image }}
-                /io/scripts/build.sh
-            - name: upload artifact
-              uses: actions/upload-artifact@v4
-              with:
-                name: "verilator-${{ matrix.image }}"
-                path: "release/verilator-${{ matrix.image }}-*.tar.gz"
-                if-no-files-found: error
-                retention-days: 7
+    #     runs-on: 'ubuntu-24.04-arm'
+    #     needs: version-check
+    #     strategy:
+    #       matrix:
+    #         image: [manylinux_2_28_aarch64, manylinux_2_34_aarch64]
+    #     steps:
+    #         - uses: actions/checkout@v4
+    #         - name: print
+    #           run: |
+    #             echo "print"
+    #             echo "image: ${{ matrix.image }}"
+    #             echo "bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}"
+    #             echo "vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}"
+    #         - name: build
+    #           env:
+    #             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #             BUILD_NUM: ${{ github.run_id }}
+    #             image: ${{ matrix.image }}
+    #             bwz_latest_rls: ${{ needs.version-check.outputs.bwz_latest_rls }}
+    #             vlt_latest_rls: ${{ needs.version-check.outputs.vlt_latest_rls }}
+    #           run: >
+    #             docker run --rm
+    #             --volume "$(pwd):/io"
+    #             --env BUILD_NUM
+    #             --env vlt_latest_rls
+    #             --env bwz_latest_rls
+    #             --env image
+    #             --workdir /io
+    #             quay.io/pypa/${{ matrix.image }}
+    #             /io/scripts/build.sh
+    #         - name: upload artifact
+    #           uses: actions/upload-artifact@v4
+    #           with:
+    #             name: "verilator-${{ matrix.image }}"
+    #             path: "release/verilator-${{ matrix.image }}-*.tar.gz"
+    #             if-no-files-found: error
+    #             retention-days: 7
 
     # build-macos-arm64:
     #     runs-on: 'macos-14'

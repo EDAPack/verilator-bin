@@ -183,9 +183,9 @@ if(IS_MINGW)
     DEPENDS python-venv gmp mpfr
     GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
     GIT_TAG ${BITWUZLA_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson compile"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/venv/Scripts:$PATH && meson install"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/Scripts:$PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/Scripts:$PATH && meson compile"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/Scripts:$PATH && meson install"
     BUILD_IN_SOURCE 1
   )
 elseif(IS_CYGWIN)
@@ -194,9 +194,9 @@ elseif(IS_CYGWIN)
     DEPENDS python-venv gmp mpfr
     GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
     GIT_TAG ${BITWUZLA_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$PATH && meson compile"
-    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$PATH && meson install"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:$PATH && export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$PKG_CONFIG_PATH && meson setup <SOURCE_DIR>/build <SOURCE_DIR> --prefix=${CMAKE_INSTALL_PREFIX} -Dfpexp=false --default-library=shared --pkg-config-path=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:$PATH && meson compile"
+    INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR>/build && export PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:$PATH && meson install"
     BUILD_IN_SOURCE 1
   )
 else()
@@ -206,7 +206,7 @@ else()
     GIT_REPOSITORY https://github.com/bitwuzla/bitwuzla.git
     GIT_TAG ${BITWUZLA_GIT_TAG}
     CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env 
-      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
+      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:$ENV{PATH}
       PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}
       LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
       DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
@@ -221,12 +221,12 @@ else()
         -Dc_link_args=-L${CMAKE_INSTALL_PREFIX}/lib
         -Dcpp_link_args=-L${CMAKE_INSTALL_PREFIX}/lib
     BUILD_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR>/build ${CMAKE_COMMAND} -E env 
-      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
+      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:$ENV{PATH}
       LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
       DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
       meson compile
     INSTALL_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR>/build ${CMAKE_COMMAND} -E env 
-      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/venv/bin:$ENV{PATH}
+      PATH=${CMAKE_BINARY_DIR}/python-venv-prefix/src/python-venv/venv/bin:$ENV{PATH}
       LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
       DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{DYLD_LIBRARY_PATH}
       meson install

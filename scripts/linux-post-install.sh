@@ -17,25 +17,26 @@ test -d "${INSTALL_PREFIX}/share/verilator/bin" && \
 
 #--------------------------------------------------------------------
 # Copy any bitwuzla-internal shared libraries that meson didn't
-# install (libbitwuzlabb, libbitwuzlals, libcadical, etc.)
+# install (libcadical, etc.) directly into lib64.
+# On some systems meson installs to lib64, on others to lib — handle both.
 #--------------------------------------------------------------------
-mkdir -p "${INSTALL_PREFIX}/lib"
+mkdir -p "${INSTALL_PREFIX}/lib64"
 BWZLA_BUILD="${CMAKE_BINARY_DIR}/bitwuzla-prefix/src/bitwuzla/build"
 if test -d "${BWZLA_BUILD}"; then
-    find "${BWZLA_BUILD}" -maxdepth 4 -name 'lib*.so*' ! -name '*test*' | \
+    find "${BWZLA_BUILD}" -maxdepth 4 -type f -name 'lib*.so*' ! -name '*test*' | \
         while read -r f; do
             bn=$(basename "$f")
-            if test ! -f "${INSTALL_PREFIX}/lib/${bn}"; then
-                cp -v "$f" "${INSTALL_PREFIX}/lib/"
+            if test ! -f "${INSTALL_PREFIX}/lib64/${bn}" && \
+               test ! -f "${INSTALL_PREFIX}/lib/${bn}"; then
+                cp -v "$f" "${INSTALL_PREFIX}/lib64/"
             fi
         done
 fi
 
 #--------------------------------------------------------------------
-# Rename lib -> lib64 (create lib64 if needed, merge if it exists)
+# If meson installed to lib/ (not lib64/), merge lib/ into lib64/
 #--------------------------------------------------------------------
 if test -d "${INSTALL_PREFIX}/lib"; then
-    mkdir -p "${INSTALL_PREFIX}/lib64"
     cp -a "${INSTALL_PREFIX}/lib/." "${INSTALL_PREFIX}/lib64/"
     rm -rf "${INSTALL_PREFIX}/lib"
 fi
@@ -51,6 +52,14 @@ do
     test -f "$f" || continue
     file "$f" 2>/dev/null | grep -q ELF || continue
     patchelf --set-rpath '$ORIGIN/../lib64' "$f" 2>/dev/null || true
+done
+
+# Fix rpaths on the shared libraries themselves so they find sibling
+# libs in the same lib64 directory at runtime (not the build-time paths).
+for f in "${INSTALL_PREFIX}/lib64/"*.so*; do
+    test -f "$f" || continue
+    file "$f" 2>/dev/null | grep -q ELF || continue
+    patchelf --set-rpath '$ORIGIN' "$f" 2>/dev/null || true
 done
 
 #--------------------------------------------------------------------

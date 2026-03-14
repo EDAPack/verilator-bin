@@ -165,6 +165,7 @@ if test "x${IS_WINDOWS}" = "x1"; then
     fi
 fi
 
+cp ${root}/scripts/export.envrc verilator/
 tar czf verilator-${rls_plat}-${rls_version}.tar.gz verilator
 if test $? -ne 0; then exit 1; fi
 

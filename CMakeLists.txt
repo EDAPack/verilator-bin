@@ -77,7 +77,7 @@ if(IS_WINDOWS)
   ExternalProject_Add(python-venv
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "python3 -m venv <BINARY_DIR>/venv || python -m venv <BINARY_DIR>/venv"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "<BINARY_DIR>/venv/bin/pip install meson ninja || <BINARY_DIR>/venv/Scripts/pip install meson ninja"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "export CFLAGS='-fno-lto' CXXFLAGS='-fno-lto' && <BINARY_DIR>/venv/bin/pip install meson ninja || <BINARY_DIR>/venv/Scripts/pip install meson ninja"
     INSTALL_COMMAND ""
     BUILD_IN_SOURCE 1
   )

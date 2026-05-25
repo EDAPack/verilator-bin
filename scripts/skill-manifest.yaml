@@ -1,0 +1,7 @@
+# Agent Skills shipped in the verilator-bin release tarball.
+# Consumed by update/stage-skills.py from scripts/build.sh.
+# See SKILL_DEVELOPMENT_PROCESS.md (repo root) for the authoring process.
+skills:
+  - name: verilator
+    path: skills/verilator
+    binaries: [verilator, verilator_coverage, verilator_gantt]

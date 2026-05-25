@@ -166,6 +166,25 @@ if test "x${IS_WINDOWS}" = "x1"; then
 fi
 
 cp ${root}/scripts/export.envrc verilator/
+
+# ── Stage Agent Skills ────────────────────────────────────────────────────────
+# Skills are authored under skills/<name>/ and listed in
+# scripts/skill-manifest.yaml.  update/stage-skills.py validates each
+# skill's frontmatter and binary references and emits skills/index.json.
+manifest="${root}/scripts/skill-manifest.yaml"
+if test -f "${manifest}"; then
+    echo "=== Staging Agent Skills ==="
+    python3 "${root}/scripts/stage-skills.py" \
+        --manifest "${manifest}" \
+        --source-root "${root}" \
+        --release-root "${root}/release/verilator" \
+        --dest "${root}/release/verilator/skills"
+    if test $? -ne 0; then
+        echo "ERROR: skill staging failed" >&2
+        exit 1
+    fi
+fi
+
 tar czf verilator-${rls_plat}-${rls_version}.tar.gz verilator
 if test $? -ne 0; then exit 1; fi
 

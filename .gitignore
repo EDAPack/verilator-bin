@@ -163,3 +163,7 @@ cython_debug/
 
 packages/
 tmp/
+
+# edapack rootless build outputs
+.build/
+dist/

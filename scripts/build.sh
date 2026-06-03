@@ -1,192 +1,105 @@
-#!/bin/sh -x
+#!/usr/bin/env bash
+# verilator-bin build driver.
+#
+# Builds the exact verilator + bitwuzla commits resolved by edapack-common's
+# resolve-inputs.py (passed in via $CANDIDATE_JSON, or resolved locally), so the
+# shipped manifest.json truthfully records what was built. The heavy lifting is
+# in CMakeLists.txt (ExternalProject fetch/build/install of verilator+bitwuzla);
+# this script wires in the resolved refs and the shared release tail (skills,
+# export.envrc, manifest, tarball).
+#
+# Runs both in CI (via edapack-common's reusable workflow) and locally (via
+# edapack-common/scripts/local-build.sh). All transient state goes to WORK_DIR;
+# the tarball + manifest land in OUT_DIR. Nothing is written into the source tree.
+set -euo pipefail
 
-root=$(pwd)
+# --- locate edapack-common --------------------------------------------------
+if [ -z "${EC_COMMON:-}" ]; then
+    # sibling checkout fallback for plain local runs
+    _cand="$(cd "$(dirname "$0")/../../edapack-common" 2>/dev/null && pwd || true)"
+    [ -n "$_cand" ] && EC_COMMON="$_cand"
+fi
+if [ -z "${EC_COMMON:-}" ] || [ ! -f "$EC_COMMON/scripts/build-common.sh" ]; then
+    echo "ERROR: edapack-common not found. Set EC_COMMON or place edapack-common beside verilator-bin." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source "$EC_COMMON/scripts/build-common.sh"
 
-#********************************************************************
-#* Install required packages
-#********************************************************************
-if test $(uname -s) = "Linux"; then
-    yum update -y
-    # Install perl-core for complete Perl installation including FindBin module
-    # which is required by Verilator wrapper scripts
+: "${EC_PACKAGE:=verilator-bin}"
+export EC_PACKAGE
+ec_init_dirs
+ec_prepare_candidate
+
+os="$(uname -s)"
+plat="${EC_IMAGE_NAME:-}"
+
+# --- optional dependency install (degraded mode only) -----------------------
+# The prebaked builder image already has the toolchain; install at runtime only
+# when explicitly asked (EC_INSTALL_DEPS=1), e.g. a plain manylinux fallback.
+if [ "${EC_INSTALL_DEPS:-0}" = "1" ] && [ "$os" = "Linux" ]; then
     yum install -y glibc-static wget flex bison jq help2man \
-        cmake3 autoconf make gcc gcc-c++ git perl-core patchelf
-
-    if test -z $image; then
-        image=linux
-    fi
-    export PATH=/opt/python/cp312-cp312/bin:$PATH
-    
-    # Install meson and ninja for bitwuzla build
-    pip3 install meson ninja
-    
-    # Create cmake symlink if cmake3 exists
-    if test -f /usr/bin/cmake3 && test ! -f /usr/bin/cmake; then
-        ln -s /usr/bin/cmake3 /usr/bin/cmake
-    fi
-    
-    rls_plat=${image}
-elif test $(uname -s) = "Darwin"; then
-    # macOS - dependencies installed via brew in CI
-    if test -z $image; then
-        image=macos-$(uname -m)
-    fi
-    
-    # Install meson and ninja for bitwuzla build
-    pip3 install meson ninja --break-system-packages || pip3 install meson ninja
-    
-    # Set flag to remove pregen files on macOS to avoid flex compatibility issues
-    REMOVE_PREGEN=1
-    
-    rls_plat=${image}
-elif echo $(uname -s) | grep -q "MINGW\|MSYS"; then
-    # MinGW environment
-    if test -z $image; then
-        if test "$(uname -m)" = "x86_64"; then
-            image=mingw64
-        else
-            image=mingw32
-        fi
-    fi
-    
-    # Ensure python is available
-    which python3 || alias python3=python
-    
-    rls_plat=${image}
-    IS_WINDOWS=1
-elif echo $(uname -s) | grep -q "CYGWIN"; then
-    # Cygwin environment
-    if test -z $image; then
-        if test "$(uname -m)" = "x86_64"; then
-            image=cygwin64
-        else
-            image=cygwin32
-        fi
-    fi
-    
-    # Install meson and ninja if not present
-    pip3 install meson ninja || python3 -m pip install meson ninja
-    
-    rls_plat=${image}
-    IS_WINDOWS=1
-fi
-
-#********************************************************************
-#* Validate environment variables
-#********************************************************************
-if test -z $vlt_latest_rls; then
-  echo "vlt_latest_rls not set"
-  env
-  exit 1
-fi
-
-if test -z $bwz_latest_rls; then
-  echo "bwz_latest_rls not set"
-  env
-  exit 1
-fi
-
-#********************************************************************
-#* Calculate version information
-#********************************************************************
-if test -z ${rls_version}; then
-    vlt_version=$(echo $vlt_latest_rls | sed -e 's/^v//')
-    rls_version=${vlt_version}
-
-    if test "x${BUILD_NUM}" != "x"; then
-        rls_version="${rls_version}.${BUILD_NUM}"
+        cmake3 autoconf make gcc gcc-c++ git perl-core patchelf || true
+    pip3 install meson ninja || true
+    if [ -f /usr/bin/cmake3 ] && [ ! -f /usr/bin/cmake ]; then
+        ln -s /usr/bin/cmake3 /usr/bin/cmake || true
     fi
 fi
 
-#********************************************************************
-#* Build using CMake
-#********************************************************************
-cd ${root}
+# --- platform label + per-OS quirks -----------------------------------------
+REMOVE_PREGEN=0
+IS_WINDOWS=0
+case "$os" in
+    Linux)  : "${plat:=linux}" ;;
+    Darwin) : "${plat:=macos-$(uname -m)}"; REMOVE_PREGEN=1 ;;
+    *)
+        if echo "$os" | grep -q "MINGW\|MSYS"; then plat="${plat:-mingw64}"; IS_WINDOWS=1; fi
+        if echo "$os" | grep -q "CYGWIN"; then plat="${plat:-cygwin64}"; IS_WINDOWS=1; fi
+        ;;
+esac
 
-# Create build directory
-rm -rf build
-mkdir -p build
-cd build
+# --- resolved input commits -------------------------------------------------
+vlt_sha="$(ec_input_get verilator resolved_sha)"
+bwz_sha="$(ec_input_get bitwuzla resolved_sha)"
+[ -n "$vlt_sha" ] && [ -n "$bwz_sha" ] || ec_die "missing resolved input SHAs in candidate"
+ec_log "verilator @ $vlt_sha"
+ec_log "bitwuzla  @ $bwz_sha"
 
-# Configure CMake with version information from GitHub workflow
-# When vlt_latest_rls is "master", use USE_LATEST_BRANCH=ON for top-of-trunk builds
-if test "${vlt_latest_rls}" = "master"; then
-  cmake .. \
-    -DUSE_LATEST_BRANCH=ON \
-    -DBITWUZLA_TAG=${bwz_latest_rls} \
-    -DCMAKE_INSTALL_PREFIX=${root}/release/verilator
-else
-  cmake .. \
+# --- configure + build (CMake ExternalProject installs into the prefix) -----
+release_root="$WORK_DIR/release/verilator"
+build_dir="$WORK_DIR/build"
+rm -rf "$release_root" "$build_dir"
+mkdir -p "$build_dir"
+
+cmake -S "$SRC_DIR" -B "$build_dir" \
     -DUSE_LATEST_BRANCH=OFF \
-    -DVERILATOR_TAG=${vlt_latest_rls} \
-    -DBITWUZLA_TAG=${bwz_latest_rls} \
-    -DCMAKE_INSTALL_PREFIX=${root}/release/verilator
+    -DVERILATOR_TAG="$vlt_sha" \
+    -DBITWUZLA_TAG="$bwz_sha" \
+    -DCMAKE_INSTALL_PREFIX="$release_root"
+
+if [ "$REMOVE_PREGEN" = "1" ]; then
+    find "$build_dir" -name "*_pregen*" -delete 2>/dev/null || true
 fi
 
-if test $? -ne 0; then exit 1; fi
+jobs="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+cmake --build "$build_dir" -j"$jobs"
 
-# On macOS, remove pregen lex files to force regeneration with homebrew flex
-# This avoids compatibility issues with the system FlexLexer.h
-if test "x${REMOVE_PREGEN}" = "x1"; then
-    echo "Removing pregen lex files for macOS compatibility..."
-    find . -name "*_pregen*" -delete 2>/dev/null || true
-fi
-
-# Build
-cmake --build . -j$(nproc)
-if test $? -ne 0; then exit 1; fi
-
-#********************************************************************
-#* Create release tarball
-#********************************************************************
-cd ${root}/release
-
-# For Windows builds, we need to include the runtime libraries
-if test "x${IS_WINDOWS}" = "x1"; then
-    echo "Creating Windows release package with runtime libraries..."
-    
-    # Copy required DLLs for MinGW/Cygwin
-    if echo $(uname -s) | grep -q "MINGW\|MSYS"; then
-        # MinGW: Copy MinGW runtime DLLs
-        mkdir -p verilator/bin
-        cp -v /mingw*/bin/libgcc_s_*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /mingw*/bin/libstdc++-*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /mingw*/bin/libwinpthread-*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /mingw*/bin/libgmp-*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /mingw*/bin/libmpfr-*.dll verilator/bin/ 2>/dev/null || true
-    elif echo $(uname -s) | grep -q "CYGWIN"; then
-        # Cygwin: Dependencies are in /usr/bin
-        mkdir -p verilator/bin
-        cp -v /usr/bin/cyggcc_s-*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /usr/bin/cygstdc++-*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /usr/bin/cygwin1.dll verilator/bin/ 2>/dev/null || true
-        cp -v /usr/bin/cyggmp-*.dll verilator/bin/ 2>/dev/null || true
-        cp -v /usr/bin/cygmpfr-*.dll verilator/bin/ 2>/dev/null || true
+# --- Windows runtime DLLs ---------------------------------------------------
+if [ "$IS_WINDOWS" = "1" ]; then
+    mkdir -p "$release_root/bin"
+    if echo "$os" | grep -q "MINGW\|MSYS"; then
+        for pat in libgcc_s_ libstdc++- libwinpthread- libgmp- libmpfr-; do
+            cp -v /mingw*/bin/${pat}*.dll "$release_root/bin/" 2>/dev/null || true
+        done
+    elif echo "$os" | grep -q "CYGWIN"; then
+        for pat in cyggcc_s- cygstdc++- cygwin1 cyggmp- cygmpfr-; do
+            cp -v /usr/bin/${pat}*.dll "$release_root/bin/" 2>/dev/null || true
+        done
     fi
 fi
 
-cp ${root}/scripts/export.envrc verilator/
-
-# ── Stage Agent Skills ────────────────────────────────────────────────────────
-# Skills are authored under skills/<name>/ and listed in
-# scripts/skill-manifest.yaml.  update/stage-skills.py validates each
-# skill's frontmatter and binary references and emits skills/index.json.
-manifest="${root}/scripts/skill-manifest.yaml"
-if test -f "${manifest}"; then
-    echo "=== Staging Agent Skills ==="
-    python3 "${root}/scripts/stage-skills.py" \
-        --manifest "${manifest}" \
-        --source-root "${root}" \
-        --release-root "${root}/release/verilator" \
-        --dest "${root}/release/verilator/skills"
-    if test $? -ne 0; then
-        echo "ERROR: skill staging failed" >&2
-        exit 1
-    fi
-fi
-
-tar czf verilator-${rls_plat}-${rls_version}.tar.gz verilator
-if test $? -ne 0; then exit 1; fi
-
-echo "Build complete: verilator-${rls_plat}-${rls_version}.tar.gz"
-
+# --- shared release tail ----------------------------------------------------
+ec_finalize_release "$SRC_DIR" "$release_root" "$CANDIDATE_JSON"
+tarball="verilator-${plat}-${EC_VERSION}.tar.gz"
+ec_make_tarball "$release_root" "$tarball"
+ec_log "build complete: $tarball"

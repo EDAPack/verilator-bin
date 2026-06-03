@@ -1,0 +1,13 @@
+# Input components for verilator-bin, resolved by edapack-common's
+# resolve-inputs.py. See https://edapack.github.io (Developer Guide → build-inputs).
+schema: edapack.build-inputs/1
+
+core:
+  name: verilator
+  repo: https://github.com/verilator/verilator
+  policy: branch:master          # top-of-trunk; pin a release with core_ref=v5.038
+
+dependencies:
+  - name: bitwuzla
+    repo: https://github.com/bitwuzla/bitwuzla
+    policy: branch:main

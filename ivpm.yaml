@@ -9,6 +9,8 @@ package:
       url: https://github.com/dv-flow/dv-flow-mgr.git
     - name: dv-flow-libhdlsim
       url: https://github.com/dv-flow/dv-flow-libhdlsim.git
+    - name: edapack-common
+      url: https://github.com/edapack/edapack-common.git
     - name: pytest
       src: pypi
     - name: meson

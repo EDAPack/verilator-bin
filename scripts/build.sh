@@ -16,8 +16,10 @@ set -euo pipefail
 # --- locate edapack-common --------------------------------------------------
 if [ -z "${EC_COMMON:-}" ]; then
     # sibling checkout fallback for plain local runs
-    _cand="$(cd "$(dirname "$0")/../../edapack-common" 2>/dev/null && pwd || true)"
-    [ -n "$_cand" ] && EC_COMMON="$_cand"
+    _repo="$(cd "$(dirname "$0")/.." && pwd)"
+    for _c in "$_repo/packages/edapack-common" "$_repo/../edapack-common"; do
+        if [ -f "$_c/scripts/build-common.sh" ]; then EC_COMMON="$_c"; break; fi
+    done
 fi
 if [ -z "${EC_COMMON:-}" ] || [ ! -f "$EC_COMMON/scripts/build-common.sh" ]; then
     echo "ERROR: edapack-common not found. Set EC_COMMON or place edapack-common beside verilator-bin." >&2
@@ -34,12 +36,12 @@ ec_prepare_candidate
 os="$(uname -s)"
 plat="${EC_IMAGE_NAME:-}"
 
-# --- optional dependency install (degraded mode only) -----------------------
-# The prebaked builder image already has the toolchain; install at runtime only
-# when explicitly asked (EC_INSTALL_DEPS=1), e.g. a plain manylinux fallback.
+# --- provision the stock manylinux image (EC_INSTALL_DEPS=1 in CI/local) -----
 if [ "${EC_INSTALL_DEPS:-0}" = "1" ] && [ "$os" = "Linux" ]; then
     yum install -y glibc-static wget flex bison jq help2man \
         cmake3 autoconf make gcc gcc-c++ git perl-core patchelf || true
+    # prefer the manylinux cpython for meson/ninja (used by the bitwuzla build)
+    [ -d /opt/python/cp312-cp312/bin ] && export PATH=/opt/python/cp312-cp312/bin:$PATH
     pip3 install meson ninja || true
     if [ -f /usr/bin/cmake3 ] && [ ! -f /usr/bin/cmake ]; then
         ln -s /usr/bin/cmake3 /usr/bin/cmake || true

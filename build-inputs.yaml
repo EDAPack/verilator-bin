@@ -1,11 +1,17 @@
 # Input components for verilator-bin, resolved by edapack-common's
 # resolve-inputs.py. See https://edapack.github.io (Developer Guide → build-inputs).
+#
+# Comments are kept in this header (not inline in the body) because the
+# published @v1 resolver's YAML parser neither strips trailing inline comments
+# nor skips comment lines when deciding a block's type.
+#   core verilator - policy branch:master (top-of-trunk); pin with core_ref=v5.038
+#   bitwuzla       - SMT solver dependency
 schema: edapack.build-inputs/1
 
 core:
   name: verilator
   repo: https://github.com/verilator/verilator
-  policy: branch:master          # top-of-trunk; pin a release with core_ref=v5.038
+  policy: branch:master
 
 dependencies:
   - name: bitwuzla

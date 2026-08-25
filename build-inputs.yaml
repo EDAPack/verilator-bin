@@ -14,7 +14,13 @@
 #                     versioned 5.051.<run-id> rather than 0.<run-id>.
 #   release_notes   - upstream changelog; its section for the built version
 #                     becomes the GitHub release body on the release track.
-#   bitwuzla        - SMT solver dependency, current on both tracks
+#   bitwuzla        - SMT solver dependency, tagged releases only. Not
+#                     branch:main: bitwuzla 711625f3 (2026-06-18, after the
+#                     0.9.1 tag) uses C++20 heterogeneous unordered_map lookup,
+#                     which needs GCC >= 11 and so cannot build on
+#                     manylinux2014 (el7 / devtoolset-10). latest-release is
+#                     also what this package shipped before the edapack-common
+#                     migration.
 schema: edapack.build-inputs/1
 
 core:
@@ -28,4 +34,4 @@ core:
 dependencies:
   - name: bitwuzla
     repo: https://github.com/bitwuzla/bitwuzla
-    policy: branch:main
+    policy: latest-release

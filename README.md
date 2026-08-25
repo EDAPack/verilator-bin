@@ -6,12 +6,30 @@ to support constrained randomization, and a compatible version of the
 [UVM](https://www.accellera.org/downloads/standards/uvm) library.
 
 ## Release Scheme
-verilator-bin provides weekly builds of Verilator top-of-trunk. These releases
-are generally marked as pre-release.
 
-verilator-bin also provides tagged builds of Verilator releases.
+Releases come from two automatic tracks.
 
-The latest most-stable build is tagged 'latest'.
+**Release track** — when Verilator publishes a tag newer than the last one we
+built, CI builds it from that tag. The version matches upstream exactly
+(`5.050`, tagged `v5.050`), it is published as a full release, its notes are
+Verilator's own release notes for that version, and it becomes `latest`.
+Verilator tags roughly every 6–8 weeks.
+
+**Snapshot track** — a weekly build of Verilator top-of-trunk, versioned
+`<upstream in-development version>.<CI run id>` (e.g. `5.051.32639969514`) and
+tagged `v5.051.32639969514`. These are marked pre-release and never become
+`latest`. A build is published only when an input actually changed since the
+previous snapshot.
+
+The two tracks never both build in the same run: when a new upstream release is
+available, the release track builds it and the snapshot stands down, since the
+release covers the same code.
+
+So `latest` always points at a build of a tagged Verilator release. Use
+`latest` for stable work and a pre-release tag for top-of-trunk.
+
+Both tracks build the same platform set and can be run by hand from the CI
+workflow's *Run workflow* button, which takes a track selector.
 
 ## Testing
 Each build automatically runs a smoke test to validate the installation. The test:

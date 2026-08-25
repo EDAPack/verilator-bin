@@ -4,14 +4,26 @@
 # Comments are kept in this header (not inline in the body) because the
 # published @v1 resolver's YAML parser neither strips trailing inline comments
 # nor skips comment lines when deciding a block's type.
-#   core verilator - policy branch:master (top-of-trunk); pin with core_ref=v5.038
-#   bitwuzla       - SMT solver dependency
+#   core verilator  - dev track follows master (top-of-trunk); pin with core_ref=v5.038
+#   release_policy  - release track builds the newest upstream tag. Verilator
+#                     publishes tags but no GitHub Releases, so this is
+#                     latest-tag, not latest-release. The regex keeps a future
+#                     v5.052-rc1 from being published as a release.
+#   version_probe   - a branch policy yields no version from the ref alone;
+#                     read AC_INIT out of configure.ac so a dev build is
+#                     versioned 5.051.<run-id> rather than 0.<run-id>.
+#   release_notes   - upstream changelog; its section for the built version
+#                     becomes the GitHub release body on the release track.
+#   bitwuzla        - SMT solver dependency, current on both tracks
 schema: edapack.build-inputs/1
 
 core:
   name: verilator
   repo: https://github.com/verilator/verilator
   policy: branch:master
+  release_policy: 'latest-tag:^v\d+\.\d+$'
+  version_probe: configure.ac:AC_INIT
+  release_notes: Changes
 
 dependencies:
   - name: bitwuzla

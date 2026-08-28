@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://dv-flow.github.com/dv.flow.schema.json
+#
+# Exercises the shipped UVM + its Verilator DPI layer through dv-flow-mgr,
+# the way a real user consumes them.
+
+package:
+  name: org.edapack.verilator-bin.tests.uvm-dpi
+
+  imports:
+  - name: hdlsim.vlt
+
+  tasks:
+  - name: uvm
+    uses: hdlsim.vlt.SimLibUVM
+    with:
+      # Not "auto": if the DPI overlay is missing we want this test to FAIL,
+      # not to quietly fall back to glob-only regex matching and then fail
+      # later with a confusing regex mismatch.
+      dpi: "true"
+
+  - name: tb
+    uses: std.FileSet
+    with:
+      type: systemVerilogSource
+      include: "uvm_dpi_tb.sv"
+
+  - name: build
+    uses: hdlsim.vlt.SimImage
+    needs: [uvm, tb]
+    with:
+      top: [uvm_dpi_tb]
+
+  - name: run
+    uses: hdlsim.vlt.SimRun
+    needs: [build]

@@ -167,3 +167,7 @@ tmp/
 # edapack rootless build outputs
 .build/
 dist/
+
+# Test scratch directories
+tests/*/[_a-z]*_work/
+tests/smoke_test_work/

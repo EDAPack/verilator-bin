@@ -273,8 +273,12 @@ else()
 endif()
 
 # Fetch and install UVM
+# UVM_VERSION also selects which of Verilator's UVM DPI source sets is
+# overlaid below (see scripts/install-uvm-dpi.sh for the mapping).
+set(UVM_VERSION "1800.2-2017-1.0" CACHE STRING "Accellera UVM version to ship")
+
 ExternalProject_Add(uvm
-  URL https://www.accellera.org/images/downloads/standards/uvm/Accellera-1800.2-2017-1.0.tar.gz
+  URL https://www.accellera.org/images/downloads/standards/uvm/Accellera-${UVM_VERSION}.tar.gz
   ${EXTRACT_TIMESTAMP_ARG}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
@@ -282,10 +286,31 @@ ExternalProject_Add(uvm
     COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/src ${CMAKE_INSTALL_PREFIX}/share/uvm/src
 )
 
+# Overlay Verilator's UVM DPI sources onto the installed UVM tree.
+#
+# Accellera UVM ships no Verilator backend for uvm_hdl_* (only VCS, Questa and
+# Xcelium), so stock uvm_dpi.cc cannot compile under Verilator and consumers are
+# forced onto +define+UVM_NO_DPI -- which silently downgrades uvm_re_match to
+# glob-only matching. Verilator does carry a working set, but only under
+# test_regress, which `make install` does not install. So we copy it ourselves.
+#
+# Depends on both: 'uvm' provides the destination tree, 'verilator' provides
+# the source tree (still on disk at verilator-prefix/src/verilator).
+ExternalProject_Add(uvm-dpi
+  DEPENDS uvm verilator
+  DOWNLOAD_COMMAND ""
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/install-uvm-dpi.sh
+          ${CMAKE_BINARY_DIR}/verilator-prefix/src/verilator
+          ${CMAKE_INSTALL_PREFIX}
+          ${UVM_VERSION}
+)
+
 # Post-install cleanup and modifications
 if(IS_WINDOWS)
   ExternalProject_Add(post-install
-    DEPENDS verilator uvm
+    DEPENDS verilator uvm uvm-dpi
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
@@ -310,9 +335,14 @@ if(IS_WINDOWS)
     BUILD_COMMAND ""
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_SOURCE_DIR}/tests && PATH=$(${BASH_EXECUTABLE} -c 'cd ${CMAKE_INSTALL_PREFIX}/bin && pwd'):$PATH ./run_smoke_test.sh"
   )
+
+  # The UVM DPI tests are not run on MinGW/Cygwin: uvm_dpi.h requires POSIX
+  # <regex.h>, which mingw-w64 does not ship. The DPI sources are still
+  # installed (they are just sources), so nothing is lost by shipping them.
+  message(STATUS "Skipping UVM DPI tests on Windows (no POSIX regex.h)")
 else()
   ExternalProject_Add(post-install
-    DEPENDS verilator uvm
+    DEPENDS verilator uvm uvm-dpi
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
@@ -329,5 +359,28 @@ else()
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND bash -c "export PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH && ${CMAKE_SOURCE_DIR}/tests/run_smoke_test.sh"
+  )
+
+  # Validate that the UVM DPI overlay was installed and actually works.
+  # Guards against silently regressing to +define+UVM_NO_DPI, which
+  # downgrades UVM's uvm_re_match to glob-only matching.
+  ExternalProject_Add(uvm-dpi-test
+    DEPENDS post-install
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND bash -c "export PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH && ${CMAKE_SOURCE_DIR}/tests/uvm_dpi/run_uvm_dpi_test.sh"
+  )
+
+  # Validate the same thing through dv-flow-mgr / dv-flow-libhdlsim, ie the
+  # way the package is actually consumed. Covers UVM discovery from the
+  # installed layout and SimLibUVM's DPI wiring, not just raw verilator.
+  # Set VERILATOR_BIN_SKIP_DFM_TEST=1 for an offline build.
+  ExternalProject_Add(uvm-dpi-dfm-test
+    DEPENDS uvm-dpi-test
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND bash -c "export PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH && ${CMAKE_SOURCE_DIR}/tests/uvm_dpi_dfm/run_dfm_test.sh"
   )
 endif()

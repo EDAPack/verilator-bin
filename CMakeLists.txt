@@ -261,11 +261,25 @@ elseif(IS_CYGWIN)
   )
 else()
   # Unix/Linux/macOS build
+  #
+  # CXXFLAGS=-std=gnu++17: Verilator's configure only injects a -std= flag when
+  # the compiler cannot do C++14 by default, so on manylinux2014 (el7 /
+  # devtoolset-10, gcc 10, default gnu++14) Verilator's own sources build as
+  # C++14 while every newer image gets gnu++17 for free. Master then fails to
+  # link -- eg V3AssertNfa.cpp odr-uses `static constexpr int
+  # kDepthUnreachable`, which needs an out-of-line definition before C++17.
+  # gnu++17 is the newest standard Verilator regularly tests, and is already
+  # the default on every other compiler we build with, so this only changes
+  # manylinux2014. It affects Verilator's own build only: Makefile_obj.in
+  # consumes @CXXFLAGS@, verilated.mk.in does not, so generated models are
+  # unaffected.
   ExternalProject_Add(verilator
     DEPENDS bitwuzla
     GIT_REPOSITORY https://github.com/verilator/verilator.git
     GIT_TAG ${VERILATOR_GIT_TAG}
-    CONFIGURE_COMMAND autoconf COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla
+    CONFIGURE_COMMAND autoconf
+      COMMAND ${CMAKE_COMMAND} -E env CXXFLAGS=-std=gnu++17
+              <SOURCE_DIR>/configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla
     BUILD_COMMAND make -j${NPROC}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1

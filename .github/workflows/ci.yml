@@ -1,3 +1,28 @@
+# RELEASE PATH -- read this before changing the `uses:` below.
+#
+# This repo does not publish anything itself. Its release pipeline is
+# edapack/edapack-common's reusable build-release workflow, and the gating lives
+# there: a `gate` job resolves the release-authority switch at
+# https://dvkit.org/.well-known/release-authority.json and the publish job
+# requires both `authority == 'github'` and an event that is not a push. That
+# last clause is what makes this repo safe to mirror -- since 2026-08-31 its
+# history moves between Forgejo and GitHub on a five-minute cron, and git-sync
+# produces exactly one kind of event, a push.
+#
+# THE PIN IS NOT IMMUTABLE. `@v1` is an actions/checkout@v4-style major-version
+# alias that edapack-common retargets forward, so it currently points at the tip
+# of that repo's `main`. Changing it -- or edapack-common moving it -- changes
+# this repo's release behaviour with no commit here.
+#
+# This block is also load-bearing for the sync itself, which is worth knowing
+# before deleting it as boilerplate. git-sync's inbound publish preflight reads
+# workflow files as TEXT and cannot follow a `uses:` into another repository, so
+# it sees a reference to a release pipeline and no evidence of a gate, and
+# refuses to pull the ref. Naming the switch here is how this file states the
+# thing the scanner is actually asking about; the gate really is on, it is just
+# one repository away. There is a counterpart check in
+# .forgejo/workflows/ci.yml that asserts the pin still resolves.
+
 name: CI
 # Thin caller of the shared edapack build pipeline. All build/release logic
 # (resolve inputs -> change-gate -> build matrix -> publish, with a release

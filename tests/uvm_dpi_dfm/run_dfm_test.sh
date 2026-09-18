@@ -6,16 +6,28 @@
 # The flow uses SimLibUVM with dpi="true", so a missing or broken DPI overlay
 # fails here rather than silently falling back to glob-only regex matching.
 #
+# The flow builds ONE image and runs several uvm_tests out of it via
+# +UVM_TESTNAME (one dv-flow task each), so the added coverage costs seconds
+# rather than another multi-minute verilation.
+#
 # Provisions its own venv from PyPI. Set VERILATOR_BIN_SKIP_DFM_TEST=1 to skip
 # (eg for an offline build); set DFM_TEST_VENV to reuse an existing venv.
 #
 # The flow needs a dv-flow-libhdlsim whose SimLibUVM understands the `dpi`
-# parameter and consumes the DPI overlay. Until that is on PyPI, point
+# parameter and consumes the DPI overlay. That has been on PyPI since
+# 0.0.533139756912; to test against something newer, point
 # DFM_TEST_LIBHDLSIM_SPEC at a git ref or a local checkout, eg:
 #   DFM_TEST_LIBHDLSIM_SPEC="git+https://github.com/dv-flow/dv-flow-libhdlsim@main"
 #   DFM_TEST_LIBHDLSIM_SPEC="/path/to/dv-flow-libhdlsim"
 
 set -e
+
+# dv-flow task name -> uvm_test class it runs. Must match flow.dv.
+TESTS="run-dpi:uvm_dpi_test
+run-cfgdb:uvm_cfgdb_test
+run-factory:uvm_factory_test
+run-cmdline:uvm_cmdline_test
+run-reg:uvm_reg_backdoor_test"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${SCRIPT_DIR}/dfm_test_work"
@@ -105,33 +117,55 @@ PY
     exit 1
 fi
 
-SIM_LOG=$(find rundir -name 'sim.log' | head -1)
-if test -z "${SIM_LOG}"; then
-    echo "ERROR: no sim.log produced"
-    exit 1
-fi
+#--------------------------------------------------------------------
+# Check every run task's log. A test that never ran is as much a
+# failure as one that ran and reported errors, so each task must
+# produce a sim.log carrying its own PASSED line.
+#--------------------------------------------------------------------
+FAILED=""
+for entry in ${TESTS}; do
+    task="${entry%%:*}"
+    test_name="${entry##*:}"
 
-echo "--- sim.log ---"
-cat "${SIM_LOG}"
-echo "---------------"
+    SIM_LOG=$(find rundir -path "*${task}*" -name 'sim.log' | head -1)
+    if test -z "${SIM_LOG}"; then
+        echo "ERROR: no sim.log for task '${task}'"
+        FAILED="${FAILED} ${task}"
+        continue
+    fi
 
-if ! grep -q "UVM DPI DFM TEST PASSED" "${SIM_LOG}"; then
-    echo "ERROR: 'UVM DPI DFM TEST PASSED' not found in ${SIM_LOG}"
-    exit 1
-fi
+    echo "--- ${task} (${test_name}): ${SIM_LOG} ---"
+    cat "${SIM_LOG}"
+    echo "---------------"
 
-# An actual report is "UVM_ERROR <file>(<line>) @ ..." or "UVM_ERROR @ ...".
-# The report-summary count line is "UVM_ERROR :    0", so require that the
-# token after the severity is not a colon.
-if grep -qE "^UVM_(ERROR|FATAL) [^:]" "${SIM_LOG}"; then
-    echo "ERROR: UVM reported errors"
-    grep -E "^UVM_(ERROR|FATAL) [^:]" "${SIM_LOG}"
-    exit 1
-fi
+    if ! grep -q "UVM DPI TEST PASSED: ${test_name}" "${SIM_LOG}"; then
+        echo "ERROR: '${test_name}' did not report PASSED in ${SIM_LOG}"
+        FAILED="${FAILED} ${task}"
+        continue
+    fi
 
-# The report summary must show zero errors/fatals.
-if ! grep -qE "UVM_ERROR :\s+0" "${SIM_LOG}"; then
-    echo "ERROR: UVM report summary does not show 0 errors"
+    # An actual report is "UVM_ERROR <file>(<line>) @ ..." or "UVM_ERROR @ ...".
+    # The report-summary count line is "UVM_ERROR :    0", so require that the
+    # token after the severity is not a colon.
+    if grep -qE "^UVM_(ERROR|FATAL) [^:]" "${SIM_LOG}"; then
+        echo "ERROR: ${task}: UVM reported errors"
+        grep -E "^UVM_(ERROR|FATAL) [^:]" "${SIM_LOG}"
+        FAILED="${FAILED} ${task}"
+        continue
+    fi
+
+    # The report summary must show zero errors/fatals.
+    if ! grep -qE "UVM_ERROR :\s+0" "${SIM_LOG}"; then
+        echo "ERROR: ${task}: UVM report summary does not show 0 errors"
+        FAILED="${FAILED} ${task}"
+        continue
+    fi
+
+    echo "PASS: ${task} (${test_name})"
+done
+
+if test -n "${FAILED}"; then
+    echo "ERROR: failing UVM tests:${FAILED}"
     exit 1
 fi
 

@@ -60,7 +60,10 @@ module t;
       $finish;
     end
 
-    v = 32'h12345678;
+    // uvm_hdl_data_t is 1024 bits wide; assign the field, not the whole vector,
+    // so the testcase is lint-clean rather than relying on -Wno-fatal.
+    v         = '0;
+    v[31:0]   = 32'h12345678;
     if (uvm_hdl_deposit("t.sig", v) != 1) begin
       $display("%%Error: uvm_hdl_deposit('t.sig') failed");
       $finish;

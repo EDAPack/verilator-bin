@@ -293,12 +293,25 @@ else()
 endif()
 
 # Fetch and install UVM
-# UVM_VERSION also selects which of Verilator's UVM DPI source sets is
-# overlaid below (see scripts/install-uvm-dpi.sh for the mapping).
-set(UVM_VERSION "1800.2-2017-1.0" CACHE STRING "Accellera UVM version to ship")
+#
+# 1800.2-2020.3.2 (2026-08-10) is the first Accellera release to ship the
+# Verilator backend for uvm_hdl_* itself, which is why we are on it: before it,
+# verilator-bin had to overlay Verilator's test_regress copy to make uvm_dpi.cc
+# compile at all. See docs/design/uvm-dpi.md.
+#
+# Accellera's download URLs are not uniformly named -- older releases are
+# 'Accellera-<version>.tar.gz', 2020.3.2 is '<version>%20Release.gz' -- so the
+# URL is its own variable rather than being derived from the version.
+set(UVM_VERSION "1800.2-2020.3.2" CACHE STRING "Accellera UVM version to ship")
+set(UVM_URL "https://www.accellera.org/images/downloads/standards/uvm/1800.2-2020.3.2%20Release.gz"
+    CACHE STRING "Download URL for the Accellera UVM release named by UVM_VERSION")
 
 ExternalProject_Add(uvm
-  URL https://www.accellera.org/images/downloads/standards/uvm/Accellera-${UVM_VERSION}.tar.gz
+  URL ${UVM_URL}
+  # The 2020.3.2 asset is a tarball served with a bare '.gz' name; give it a
+  # name CMake will recognize as one so it is extracted rather than just
+  # decompressed.
+  DOWNLOAD_NAME uvm-${UVM_VERSION}.tar.gz
   ${EXTRACT_TIMESTAMP_ARG}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
@@ -306,25 +319,21 @@ ExternalProject_Add(uvm
     COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/src ${CMAKE_INSTALL_PREFIX}/share/uvm/src
 )
 
-# Overlay Verilator's UVM DPI sources onto the installed UVM tree.
+# Prepare the installed UVM tree's DPI layer for Verilator: assert the backend
+# is present, apply the macOS <malloc.h> fix, and write the provenance file.
 #
-# Accellera UVM ships no Verilator backend for uvm_hdl_* (only VCS, Questa and
-# Xcelium), so stock uvm_dpi.cc cannot compile under Verilator and consumers are
-# forced onto +define+UVM_NO_DPI -- which silently downgrades uvm_re_match to
-# glob-only matching. Verilator does carry a working set, but only under
-# test_regress, which `make install` does not install. So we copy it ourselves.
-#
-# Depends on both: 'uvm' provides the destination tree, 'verilator' provides
-# the source tree (still on disk at verilator-prefix/src/verilator).
+# This used to overlay Verilator's own copy of the DPI sources; as of 2020.3.2
+# Verilator's copy is byte-identical to Accellera's apart from the release
+# stamp, so there is nothing left to overlay -- only to check and record.
 ExternalProject_Add(uvm-dpi
-  DEPENDS uvm verilator
+  DEPENDS uvm
   DOWNLOAD_COMMAND ""
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
-  INSTALL_COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/install-uvm-dpi.sh
-          ${CMAKE_BINARY_DIR}/verilator-prefix/src/verilator
+  INSTALL_COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/prepare-uvm-dpi.sh
           ${CMAKE_INSTALL_PREFIX}
           ${UVM_VERSION}
+          ${UVM_URL}
 )
 
 # Post-install cleanup and modifications
@@ -381,9 +390,9 @@ else()
     INSTALL_COMMAND bash -c "export PATH=${CMAKE_INSTALL_PREFIX}/bin:$PATH && ${CMAKE_SOURCE_DIR}/tests/run_smoke_test.sh"
   )
 
-  # Validate that the UVM DPI overlay was installed and actually works.
-  # Guards against silently regressing to +define+UVM_NO_DPI, which
-  # downgrades UVM's uvm_re_match to glob-only matching.
+  # Validate that the shipped UVM's DPI layer actually compiles and works
+  # under Verilator. Guards against silently regressing to +define+UVM_NO_DPI,
+  # which downgrades UVM's uvm_re_match to glob-only matching.
   ExternalProject_Add(uvm-dpi-test
     DEPENDS post-install
     DOWNLOAD_COMMAND ""

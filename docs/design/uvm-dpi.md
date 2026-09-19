@@ -1,9 +1,11 @@
 # Design: ship the UVM DPI sources with verilator-bin and use them from libhdlsim
 
-Status: **implemented and shipping.** The §5.3 release-ordering step is done
-(libhdlsim with the `dpi` parameter is on PyPI). Verified green in CI on all
-six build targets — run 34766415545, 2026-09-13.
-Date: 2026-08-28, updated 2026-09-18
+Status: **implemented and shipping**, and since 2026-09-19 **superseded in part**
+by §8: the shipped UVM moved to 1800.2-2020.3.2, which carries the Verilator
+backend upstream, so the overlay this document designs no longer exists. §§1–7
+are kept as the record of why the capability is there and how it is tested;
+read §8 first for what the build actually does today.
+Date: 2026-08-28, updated 2026-09-19
 Scope: `verilator-bin` (packaging + build test), `dv-flow-libhdlsim` (Verilator
 `SimLibUVM`), spanning two repositories.
 
@@ -461,3 +463,110 @@ new verilator-bin — they just stay on the `UVM_NO_DPI` path until upgraded.
    dv-flow-mgr issue, not a libhdlsim one; worked around here by having
    `run_dfm_test.sh` dump markers from `exec_data.json`. Worth fixing upstream,
    since the whole point of a warning is that someone reads it.
+
+## 8. 2026-09-19 update: UVM 1800.2-2020.3.2, and the end of the overlay
+
+### 8.1 What changed upstream
+
+Accellera released UVM **1800.2-2020.3.2** on 2026-08-10, and it ships the
+Verilator backend itself:
+
+* `src/dpi/uvm_hdl_verilator.c` — present
+* `src/dpi/uvm_hdl.c:41` — `#ifdef VERILATOR` → `#include "uvm_hdl_verilator.c"`
+* `src/dpi/uvm_dpi.h:47` — `<malloc.h>` now behind `#ifndef UVM_NO_MALLOC`
+
+The premise of §1 — "the sources exist upstream but only inside Verilator's
+test suite" — no longer holds. Diffing Verilator's
+`test_regress/t/uvm/v2020_3_2/dpi/` against Accellera 2020.3.2's `src/dpi/`
+ignoring whitespace, **all sixteen files differ by exactly two lines each**, and
+those two lines are the UVM release stamp:
+
+```
+< // $Rev:      2026-05-08 07:53:24 -0700 $      (Verilator's snapshot)
+> // $Rev:      2026-08-10 12:49:20 -0700 $      (Accellera's release)
+```
+
+There is no Verilator-specific edit left anywhere in the set. Overlaying would
+have replaced released files with a pre-release snapshot of identical code.
+
+### 8.2 What the build does now
+
+* `UVM_VERSION` defaults to `1800.2-2020.3.2`, with the download URL as its own
+  `UVM_URL` variable: Accellera's asset naming is not uniform
+  (`Accellera-<version>.tar.gz` for 2017-1.0, `<version>%20Release.gz` for
+  2020.3.2), so deriving the URL from the version does not work. `DOWNLOAD_NAME`
+  gives the bare-`.gz` asset a `.tar.gz` name so CMake extracts it rather than
+  merely decompressing it.
+* `scripts/install-uvm-dpi.sh` is replaced by `scripts/prepare-uvm-dpi.sh`,
+  which no longer copies anything. It (1) asserts `uvm_hdl_verilator.c` is
+  present and that `uvm_hdl.c` has the `VERILATOR` branch, failing the build
+  loudly if a future UVM drops either; (2) applies the macOS fix in §8.3;
+  (3) writes `VERILATOR_DPI_PROVENANCE.txt`, now recording the UVM version, the
+  source URL, the UVM release hash and which patch was applied.
+* The `uvm-dpi` target no longer `DEPENDS verilator` — it only needs the
+  installed UVM tree.
+
+The consequence worth naming: we no longer inherit Verilator's fixes to these
+files automatically, because there are none to inherit. If Verilator ever needs
+to diverge again, the fix is to restore the overlay, and the assertion in
+`prepare-uvm-dpi.sh` is what will tell us.
+
+### 8.3 macOS: `<malloc.h>`
+
+2020.3.2's `uvm_dpi.h` includes `<malloc.h>`, which does not exist on macOS
+(it is `<malloc/malloc.h>` there). UVM's escape hatch is `-DUVM_NO_MALLOC`, but
+requiring a define on one platform is a trap: the symptom is a compile error
+deep inside `uvm_dpi.cc`, and every already-released dv-flow-libhdlsim would
+break on macOS. Note the 2017 overlay hid this — Verilator's copy of that
+vintage deleted the include outright.
+
+`prepare-uvm-dpi.sh` rewrites the guard to
+
+```c
+#if !defined(UVM_NO_MALLOC) && !defined(__APPLE__)
+```
+
+on every platform, so the shipped tree is identical everywhere and only the
+preprocessor differs. Nothing in the DPI sources needs `malloc.h` —
+`malloc`/`free` come from `<stdlib.h>`, already included. An `uvm_dpi.h` that
+includes `malloc.h` in a form the patch does not recognize is a hard build
+failure rather than a silently unpatched header.
+
+### 8.4 Evidence
+
+Against a locally built shipping-equivalent package (Verilator 5.053 trunk,
+built by this repo's own CMake with `UVM_VERSION=1800.2-2020.3.2`):
+
+* `uvm-dpi-test` passes — `UVM DPI SMOKE PASSED`, provenance file present.
+* `uvm-dpi-dfm-test` passes — all five `uvm_test`s (§8.5), `UVM_ERROR : 0`,
+  with `UVM_HOME` unset so `SimLibUVM` discovers UVM from the installed layout.
+* libhdlsim needed **no change**: its capability probe looks for
+  `uvm_hdl_verilator.c`, which the stock tree now has. That is exactly why §4.1
+  probes for the backend rather than for our provenance file.
+
+Earlier, with the 11-month-old Verilator 5.041 on the dev box, stock 2020.3.2
+did *not* verilate (`Unsupported: Initial values in struct/union members`,
+`uvm_reg_item.svh:561`). The upgrade is therefore coupled to a recent Verilator;
+upstream's own `t_uvm_dpi_v2020_3_2.py` / `t_uvm_hello_all_v2020_3_2_*` tests
+mean trunk keeps it working, and our `uvm-dpi-test` fails loudly if a given
+build does not.
+
+**Not verified locally: macOS.** The `__APPLE__` guard is reasoned, not
+measured; CI's `macos-arm64` target is what proves it.
+
+### 8.5 Test coverage (2026-09-18)
+
+`tests/uvm_dpi_dfm` now builds one image and runs five `uvm_test`s through
+`+UVM_TESTNAME`, one dv-flow task each — DPI primitives, `uvm_config_db` regex
+scopes, factory instance overrides, `uvm_cmdline_processor`, and `uvm_reg`
+backdoor `poke`/`peek`. Each was checked to fail under `dpi: "false"`, so the
+suite cannot pass on the `UVM_NO_DPI` path. Two notes for whoever extends it:
+`matches` is a SystemVerilog keyword, and an instance-override path needs the
+`/.../` regex form because `uvm_glob_to_re` escapes `[` in a bare glob.
+
+### 8.6 Open questions, revisited
+
+* §7.2 (upgrade to 2020-3.1) is closed by this change, one release further on.
+* `uvm_hdl_polling.c` is now compiled — it is `#include`d unconditionally by
+  2020.3.2's `uvm_dpi.cc` — and builds clean under Verilator. The SV-side
+  polling API is not otherwise exercised by our tests.

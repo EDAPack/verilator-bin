@@ -1,9 +1,9 @@
 #!/bin/bash
 # Verifies that the UVM DPI layer we ship in share/uvm compiles and works.
 #
-# This is the guard against silently regressing to +define+UVM_NO_DPI: if the
-# overlay stops being installed (eg upstream moves test_regress/t/uvm), the
-# link fails here rather than in a user's UVM testbench months later.
+# This is the guard against silently regressing to +define+UVM_NO_DPI: if a
+# future UVM release drops the Verilator backend, the link fails here rather
+# than in a user's UVM testbench months later.
 
 set -e
 
@@ -43,17 +43,17 @@ fi
 
 echo "UVM_HOME: ${UVM_HOME}"
 
-# The overlay must be present, and must carry its provenance record.
+# The Verilator backend must be present, with its provenance record.
 if test ! -f "${UVM_HOME}/src/dpi/uvm_hdl_verilator.c"; then
     echo "ERROR: ${UVM_HOME}/src/dpi/uvm_hdl_verilator.c is missing."
-    echo "       The Verilator UVM DPI overlay was not installed; UVM would"
-    echo "       fall back to glob-only regex matching."
+    echo "       The UVM we ship has no Verilator backend for uvm_hdl_*;"
+    echo "       UVM would fall back to glob-only regex matching."
     exit 1
 fi
 
 PROVENANCE="${UVM_HOME}/src/dpi/VERILATOR_DPI_PROVENANCE.txt"
 if test ! -s "${PROVENANCE}"; then
-    echo "ERROR: ${PROVENANCE} is missing or empty (half-applied overlay?)"
+    echo "ERROR: ${PROVENANCE} is missing or empty (uvm-dpi step did not run?)"
     exit 1
 fi
 echo "--- DPI provenance ---"

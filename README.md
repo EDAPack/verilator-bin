@@ -33,13 +33,14 @@ workflow's *Run workflow* button, which takes a track selector.
 
 ## UVM
 
-UVM is installed under `share/uvm`, and — unlike stock Accellera UVM — its
-`share/uvm/src/dpi` carries a **Verilator DPI backend** (`uvm_hdl_verilator.c`),
-taken from Verilator's own test suite. `share/uvm/src/dpi/VERILATOR_DPI_PROVENANCE.txt`
-records which upstream commit it came from.
+Accellera UVM **1800.2-2020.3.2** is installed under `share/uvm`, and its
+`share/uvm/src/dpi` carries a **Verilator DPI backend** (`uvm_hdl_verilator.c`).
+`share/uvm/src/dpi/VERILATOR_DPI_PROVENANCE.txt` records the UVM version, the
+release hash and the one portability fix we apply (`<malloc.h>` is not guarded
+for macOS upstream).
 
-That matters because without it `uvm_dpi.cc` cannot compile under Verilator, and
-UVM has to be built with `+define+UVM_NO_DPI` — which silently downgrades
+The backend matters because without it `uvm_dpi.cc` cannot compile under
+Verilator, and UVM has to be built with `+define+UVM_NO_DPI` — which silently downgrades
 `uvm_re_match` to glob-only matching (so `^a.*b$` stops matching `axxxb`,
 affecting `uvm_config_db` scopes, factory overrides by name and `+uvm_set_*`),
 disables the register backdoor, and leaves the command-line processor with no
@@ -91,8 +92,8 @@ cd tests
 Builds also run two UVM tests (skipped on MinGW/Cygwin, which lack POSIX
 `<regex.h>`):
 
-* `tests/uvm_dpi/` — raw `verilator` command line; checks the overlay is
-  installed and that regex matching and `uvm_hdl_*` work.
+* `tests/uvm_dpi/` — raw `verilator` command line; checks the Verilator
+  backend is installed and that regex matching and `uvm_hdl_*` work.
 * `tests/uvm_dpi_dfm/` — the same capabilities through dv-flow-mgr, the way the
   package is actually consumed. One image, five `uvm_test`s selected with
   `+UVM_TESTNAME`: the DPI primitives, `uvm_config_db` regex scopes, factory

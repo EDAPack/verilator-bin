@@ -3,7 +3,7 @@
 # when consumed through dv-flow-mgr / dv-flow-libhdlsim -- ie the way users
 # actually consume this package, not just via a raw verilator command line.
 #
-# The flow uses SimLibUVM with dpi="true", so a missing or broken DPI overlay
+# The flow uses SimLibUVM with dpi="true", so a missing or broken DPI layer
 # fails here rather than silently falling back to glob-only regex matching.
 #
 # The flow builds ONE image and runs several uvm_tests out of it via
@@ -14,7 +14,7 @@
 # (eg for an offline build); set DFM_TEST_VENV to reuse an existing venv.
 #
 # The flow needs a dv-flow-libhdlsim whose SimLibUVM understands the `dpi`
-# parameter and consumes the DPI overlay. That has been on PyPI since
+# parameter and consumes the DPI sources. That has been on PyPI since
 # 0.0.533139756912; to test against something newer, point
 # DFM_TEST_LIBHDLSIM_SPEC at a git ref or a local checkout, eg:
 #   DFM_TEST_LIBHDLSIM_SPEC="git+https://github.com/dv-flow/dv-flow-libhdlsim@main"

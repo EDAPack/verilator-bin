@@ -13,6 +13,11 @@ package:
       # pulls prebuilt verilator/iverilog/xezim, which have no macOS or aarch64
       # assets for every target (and would fetch our own release into our build).
       dep-set: default
+    # Declared here only so it resolves under our default-dev: libhdlsim's
+    # `default` set names it without a dep-set, so it would inherit `default`,
+    # which pytest-dfm does not declare (a fatal error in ivpm >= 2.2x).
+    - name: pytest-dfm
+      url: https://github.com/dv-flow/pytest-dfm.git
     - name: edapack-common
       url: https://github.com/edapack/edapack-common.git
     - name: pytest

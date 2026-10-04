@@ -9,6 +9,10 @@ package:
       url: https://github.com/dv-flow/dv-flow-mgr.git
     - name: dv-flow-libhdlsim
       url: https://github.com/dv-flow/dv-flow-libhdlsim.git
+      # Not our default-dev: sub-deps inherit it, and libhdlsim's default-dev
+      # pulls prebuilt verilator/iverilog/xezim, which have no macOS or aarch64
+      # assets for every target (and would fetch our own release into our build).
+      dep-set: default
     - name: edapack-common
       url: https://github.com/edapack/edapack-common.git
     - name: pytest

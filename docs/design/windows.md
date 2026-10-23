@@ -374,6 +374,9 @@ to run.
 | Step | State | Notes |
 |---|---|---|
 | 1 Spike | in progress | branch `windows-spike`, `.github/workflows/windows-spike.yml`; `ci.yml` push builds are off on that branch |
+| | | Run 1 (`39878427213`): Verilator 5.053 built under UCRT64 (GCC 16.2), statically linked. The smoke-test model failed to link (§6.1) |
+| | | Probe (`39879952731`, `windows-probe.yml`): bug reproduced with a five-line program and with MSYS2's own verilator package; `-std=gnu++17` fixes it |
+| | | Run 2 (`39880200411`): with models pinned to gnu++17 |
 | 2–7 | not started | |
 
 Each step is independently checkable. Steps 1–3 are verilator-bin and
@@ -402,6 +405,24 @@ edapack-common; steps 4–6 are the consumers.
 7. *(Follow-up.)* ivpm on Windows: a copy fallback in the cache, and `mingw` as
    a Windows key. Then the pyhdl-if job moves to `ivpm update -a`, matching
    Linux.
+
+### 6.1 Finding: MSYS2 GCC 16.2, C++20 and `-Os`
+
+The current MSYS2 toolchain is GCC 16.2, which defaults to `-std=gnu++20`.
+In that mode at `-Os`, a call to `std::string`'s move constructor compiles to
+an out-of-line reference that `libstdc++` does not export. Linking fails with
+`undefined reference to std::__cxx11::basic_string<…>::basic_string(basic_string&&)`.
+
+* `-O2` links, and so does `-std=gnu++17` at any `-O`.
+* `verilated.mk` builds the runtime (`verilated.cpp`) at `-Os`, so every model
+  hits the bug. This includes MSYS2's own `mingw-w64-ucrt-x86_64-verilator`.
+* The March builds used GCC 15, which defaults to gnu++17, so this is new.
+
+**Workaround:** the Windows post-install pins `CFG_CXXFLAGS_STD =
+-std=gnu++17` in the shipped `verilated.mk`. A user's `-CFLAGS -std=…` still
+overrides it.
+
+Worth reporting upstream to MSYS2/GCC once the spike is green.
 
 ## 7. Housekeeping
 

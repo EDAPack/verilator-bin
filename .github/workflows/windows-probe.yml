@@ -1,0 +1,48 @@
+# TEMPORARY -- quick toolchain probes for the Windows spike
+# (docs/design/windows.md §6 step 1). Runs only when this file changes.
+name: Windows probe
+
+on:
+  push:
+    branches: [windows-spike]
+    paths: [.github/workflows/windows-probe.yml]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: false
+        install: make perl mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-verilator
+
+    - name: Plain std::string move, per -std / -O
+      run: |
+        g++ --version | head -1
+        echo | g++ -dM -E -x c++ - | grep __cplusplus
+        cat > t.cpp <<'CPP'
+        #include <string>
+        #include <utility>
+        #include <cstdio>
+        std::string f(std::string s) { std::string t{std::move(s)}; return t + "!"; }
+        int main() { std::puts(f("hi").c_str()); }
+        CPP
+        for o in -Os -O2; do for s in "" -std=gnu++17 -std=gnu++20; do
+          printf '%-6s %-14s ' "$o" "${s:-default}"
+          if g++ $o $s t.cpp -o t.exe 2>err.txt && ./t.exe >/dev/null; then echo OK; else echo FAIL; head -3 err.txt; fi
+        done; done
+
+    - name: MSYS2's own verilator package, --binary smoke (per -std)
+      run: |
+        verilator --version
+        for s in "" -std=gnu++17 -std=gnu++20; do
+          rm -rf obj_dir
+          printf '== CFLAGS=%s\n' "${s:-default}"
+          if verilator --binary tests/smoke.sv -o simv ${s:+-CFLAGS $s} > v.log 2>&1 && ./obj_dir/simv.exe | grep -q 'Hello World'; then echo OK; else echo FAIL; grep -m5 -E 'error|undefined' v.log; fi
+        done

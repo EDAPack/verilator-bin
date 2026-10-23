@@ -11,6 +11,7 @@ name: Windows spike
 on:
   push:
     branches: [windows-spike]
+    paths-ignore: [.github/workflows/windows-probe.yml]
   workflow_dispatch:
 
 jobs:

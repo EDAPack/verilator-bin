@@ -373,11 +373,13 @@ to run.
 
 | Step | State | Notes |
 |---|---|---|
-| 1 Spike | in progress | branch `windows-spike`, `.github/workflows/windows-spike.yml`; `ci.yml` push builds are off on that branch |
+| 1 Spike | **done** 2026-10-23 | branch `windows-spike`, `.github/workflows/windows-spike.yml`; `ci.yml` push builds are off on that branch |
 | | | Run 1 (`39878427213`): Verilator 5.053 built under UCRT64 (GCC 16.2), statically linked. The smoke-test model failed to link (§6.1) |
 | | | Probe (`39879952731`, `windows-probe.yml`): bug reproduced with a five-line program and with MSYS2's own verilator package; `-std=gnu++17` fixes it |
-| | | Run 2 (`39880200411`): with models pinned to gnu++17 |
-| 2–7 | not started | |
+| | | Run 2 (`39880200411`): build and MSYS2-shell smoke pass. From pwsh, `verilator.cmd` found the script but Verilator mislocated its root, because MSYS2 perl's FindBin does not split a `\` path |
+| | | Run 3 (`39881909472`): **green.** The pwsh path works: `Get-Command`/`shutil.which` find `verilator.cmd`, and `--binary` builds and runs. `verilator_bin.exe` imports only Windows system DLLs, and `bin/` ships none. Tarball is `verilator-windows-x86_64-5.053.20261023.tar.gz`, 14 MB |
+| 2 | next | Also fix two manifest defects seen in run 3: `platform` reads `os: mingw64_nt-10.0-26100, libc: glibc_3.6` (`ec_platform_json`, §4.2), and `inputs` still lists bitwuzla, which is not built on Windows (`build.sh` should drop it) |
+| 3–7 | not started | |
 
 Each step is independently checkable. Steps 1–3 are verilator-bin and
 edapack-common; steps 4–6 are the consumers.

@@ -115,4 +115,10 @@ jobs:
       # force only on an explicit dispatch; prerelease defaults true but must
       # still honor an unchecked (false) dispatch box (`false || true` == true).
       force: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
+      # DELIBERATE EXCEPTION to the fleet-wide "CI publishes full releases" rule.
+      # Every other edapack repo is single-track, so a prerelease there hides the
+      # build from ivpm (its gh-rls handler skips prereleases) and pins consumers
+      # to a stale full release. verilator-bin has a `release` track that already
+      # publishes full releases from upstream stable tags, so that is what ivpm
+      # should serve; these dev-track trunk snapshots stay opt-in prereleases.
       prerelease: ${{ github.event_name != 'workflow_dispatch' || inputs.prerelease }}

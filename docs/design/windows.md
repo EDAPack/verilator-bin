@@ -378,7 +378,7 @@ to run.
 | | | Probe (`39879952731`, `windows-probe.yml`): bug reproduced with a five-line program and with MSYS2's own verilator package; `-std=gnu++17` fixes it |
 | | | Run 2 (`39880200411`): build and MSYS2-shell smoke pass. From pwsh, `verilator.cmd` found the script but Verilator mislocated its root, because MSYS2 perl's FindBin does not split a `\` path |
 | | | Run 3 (`39881909472`): **green.** The pwsh path works: `Get-Command`/`shutil.which` find `verilator.cmd`, and `--binary` builds and runs. `verilator_bin.exe` imports only Windows system DLLs, and `bin/` ships none. Tarball is `verilator-windows-x86_64-5.053.20261023.tar.gz`, 14 MB |
-| 2 | next | Also fix two manifest defects seen in run 3: `platform` reads `os: mingw64_nt-10.0-26100, libc: glibc_3.6` (`ec_platform_json`, §4.2), and `inputs` still lists bitwuzla, which is not built on Windows (`build.sh` should drop it) |
+| 2 Pipeline | in progress | edapack-common branch `windows-msys2`: `kind: msys2`, `optional`, and `ec_platform_json` reporting `os: windows, libc: ucrt`. verilator-bin `ci.yml` adds `windows-x86_64` to both tracks. The spike workflows are deleted, and the smoke test now also runs `verilator.cmd` through `cmd.exe`. The manifest's `inputs` still lists bitwuzla on Windows, deliberately: it is the release's resolved input set, shared by every platform, and the merge requires equal digests |
 | 3–7 | not started | |
 
 Each step is independently checkable. Steps 1–3 are verilator-bin and

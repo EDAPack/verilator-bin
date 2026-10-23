@@ -58,6 +58,16 @@ fi
 
 $VERILATOR_CMD --version
 
+# Windows: native tools (cmd, PowerShell, Python's shutil.which/subprocess)
+# reach verilator through bin/verilator.cmd, not the Perl script. Check that path.
+if [[ "$(uname -s)" =~ MINGW|MSYS ]]; then
+    VLT_CMD="$(dirname "$(command -v verilator)")/verilator.cmd"
+    [ -f "$VLT_CMD" ] || { echo "ERROR: $VLT_CMD missing"; exit 1; }
+    echo "Checking verilator.cmd from cmd.exe..."
+    cmd //c "$(cygpath -w "$VLT_CMD")" --version | grep -q '^Verilator ' \
+        || { echo "ERROR: verilator.cmd --version failed"; exit 1; }
+fi
+
 echo "Cleaning work directory..."
 rm -rf "${WORK_DIR}"
 mkdir -p "${WORK_DIR}"

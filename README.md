@@ -5,6 +5,15 @@ installation of the [Bitwuzla](https://github.com/bitwuzla/bitwuzla) SMT solver
 to support constrained randomization, and a compatible version of the 
 [UVM](https://www.accellera.org/downloads/standards/uvm) library.
 
+## Platforms
+
+| Asset | Built on | Notes |
+|---|---|---|
+| `manylinux2014_x86_64`, `manylinux_2_28_x86_64`, `manylinux_2_34_x86_64` | manylinux images | |
+| `manylinux_2_28_aarch64`, `manylinux_2_34_aarch64` | manylinux images, arm runners | |
+| `macos-arm64` | macOS 14 | |
+| `windows-x86_64` | Windows, MSYS2 UCRT64 | No bundled Bitwuzla. Needs MSYS2's UCRT64 GCC, `make` and `perl` installed to build models. Optional in CI, so a release may occasionally lack it. See [docs/windows.md](docs/windows.md) |
+
 ## Release Scheme
 
 Releases come from two automatic tracks.

@@ -1,0 +1,8 @@
+# MSYS2 (UCRT64) packages a USER needs to build and run Verilator models with
+# the windows-x86_64 release -- not to build verilator-bin itself (that list is
+# msys2-packages.txt). Read by docs/windows.md and the windows-release-check
+# workflow, which installs exactly this list on a clean runner.
+make
+perl
+mingw-w64-ucrt-x86_64-gcc
+mingw-w64-ucrt-x86_64-python

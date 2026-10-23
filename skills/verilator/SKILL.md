@@ -143,6 +143,8 @@ verilator_gantt obj_dir/profile_exec.dat
 | `%Error: Internal Error: ...` | Hit a verilator bug. | Reduce to minimal repro; file at https://github.com/verilator/verilator/issues. |
 | `%Error: Define or directive not defined: \`UVM_*` | Trying to compile UVM. | Verilator's UVM support is partial; consider `iverilog -g2012` or commercial. |
 | `make: g++: command not found` (during `--build`) | No C++ toolchain on PATH. | Install `g++`/`clang++`; verilator emits C++17. |
+| Windows: `make`/`g++`/`perl` not found, or `'verilator' is not recognized` | MSYS2 UCRT64 tools, or the release `bin`, not on PATH. | Install `make perl mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python` in MSYS2; PATH order `<release>\bin`, `C:\msys64\ucrt64\bin`, `C:\msys64\usr\bin` (docs/windows.md in verilator-bin). |
+| Windows: `undefined reference to std::__cxx11::basic_string...(basic_string&&)` at link | MSYS2 GCC 16 C++20 + `-Os` bug; a `-CFLAGS -std=gnu++20` overrode the release's gnu++17 pin. | Drop the `-std=` override, or use `-std=gnu++17`. |
 | Simulation hangs | TB never advances clock or never asserts a `$finish`. | Drive the clock; add `$finish` on done; or `--timeout`. |
 | Wave file is empty | Forgot to call `top->trace(...)` and `tfp->dump(time)` in C++ main, or didn't `--trace`. | Re-build with `--trace`; in C++ main call `Verilated::traceEverOn(true); top->trace(tfp, 99);`. |
 

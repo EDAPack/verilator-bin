@@ -379,7 +379,10 @@ if(IS_WINDOWS)
       COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/bin/verilator_bin && strip ${CMAKE_INSTALL_PREFIX}/bin/* 2>/dev/null || true"
       COMMAND ${BASH_EXECUTABLE} -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
       COMMAND ${BASH_EXECUTABLE} -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
-      COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
+      # PYTHON3 ?= (not =): models run verilator_includer with it, and on a stock
+      # Windows machine `python3` may be the Microsoft Store stub. `?=` lets a
+      # PYTHON3 environment variable name the interpreter (docs/windows.md).
+      COMMAND ${BASH_EXECUTABLE} -c "sed -i 's%^PYTHON3 =.*$%PYTHON3 ?= python3%' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && grep -q '^PYTHON3 ?= python3' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk"
       # Models default to gnu++17. MSYS2's GCC 16.2 defaults to gnu++20, and at
       # -Os (which verilated.mk uses for the runtime) leaves the std::string
       # move constructor undefined at link time -- even for a trivial program,

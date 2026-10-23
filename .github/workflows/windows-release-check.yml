@@ -1,0 +1,109 @@
+# Windows release check: install the newest published verilator-bin release on a
+# clean Windows runner exactly as docs/windows.md tells a user to, and build and
+# run a model with it.
+#
+# CI's own Windows build already runs the smoke test, but inside its build
+# tree. This checks what a user actually gets:
+#   * ivpm, running in native Windows Python, picks the windows-x86_64 asset;
+#   * the documented runtime packages (scripts/msys2-runtime-packages.txt) are
+#     enough, without verilator-bin's build-time toolchain;
+#   * the documented PATH order works from PowerShell and from Python.
+#
+# Runs after a CI run that could have published (schedule/dispatch; a push never
+# publishes), and by hand. Publishes nothing.
+name: Windows release check
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'push')
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: |
+          scripts/msys2-runtime-packages.txt
+          tests/smoke.sv
+
+    - name: Read the runtime package list
+      shell: pwsh
+      run: |
+        $pk = (Get-Content scripts/msys2-runtime-packages.txt | Where-Object { $_ -and -not $_.StartsWith('#') }) -join ' '
+        "MSYS2_PACKAGES=$pk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: UCRT64
+        update: false
+        install: ${{ env.MSYS2_PACKAGES }}
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.14"
+
+    # Newest release including prereleases: the release track only moves when
+    # upstream tags, so the first releases with a Windows asset are snapshots.
+    - name: Fetch the release with ivpm
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        New-Item -ItemType Directory -Force consumer | Out-Null
+        @"
+        package:
+          name: windows-release-check
+          dep-sets:
+          - name: default-dev
+            deps:
+            - name: verilator
+              url: https://github.com/edapack/verilator-bin
+              src: gh-rls
+              prerelease: true
+        "@ | Set-Content consumer\ivpm.yaml
+        python -m pip install --quiet ivpm
+        Set-Location consumer
+        ivpm update -a --skip-py-install
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        Get-Content packages\verilator\manifest.json
+
+    - name: Build and run a model (docs/windows.md PATH)
+      shell: pwsh
+      run: |
+        $msys = "${{ steps.msys2.outputs.msys2-location }}"
+        $vlt  = "$env:GITHUB_WORKSPACE\consumer\packages\verilator"
+        $env:PATH = "$vlt\bin;$msys\ucrt64\bin;$msys\usr\bin;$env:PATH"
+        $m = Get-Content "$vlt\manifest.json" | ConvertFrom-Json
+        if ($m.platform.os -ne 'windows') { Write-Error "not a Windows asset: $($m.platform | ConvertTo-Json -Compress)"; exit 1 }
+        verilator --version
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        verilator --binary tests\smoke.sv -o simv
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        .\obj_dir\simv.exe | Tee-Object -FilePath out.log
+        if (-not (Select-String -Quiet -Path out.log -Pattern 'Hello World')) { exit 1 }
+
+    - name: Find and run verilator from Python
+      shell: pwsh
+      run: |
+        $msys = "${{ steps.msys2.outputs.msys2-location }}"
+        $vlt  = "$env:GITHUB_WORKSPACE\consumer\packages\verilator"
+        $env:PATH = "$vlt\bin;$msys\ucrt64\bin;$msys\usr\bin;$env:PATH"
+        # setup-python's interpreter, by path: ucrt64\bin's python is ahead on PATH.
+        & "$env:pythonLocation\python.exe" -c @"
+        import shutil, subprocess, sys
+        exe = shutil.which('verilator')
+        print('shutil.which:', exe)
+        assert exe and exe.lower().endswith('verilator.cmd'), exe
+        r = subprocess.run([exe, '--version'], capture_output=True, text=True)
+        print(r.stdout.strip())
+        sys.exit(r.returncode)
+        "@

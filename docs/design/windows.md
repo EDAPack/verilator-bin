@@ -1,6 +1,6 @@
 # Design: Windows Verilator for pyhdl-if CI
 
-Status: **reviewed — decisions recorded in §8; ready to prototype**
+Status: **in progress** — recipe A shipped (§6 steps 1–3); recipe B next
 Date: 2026-10-23
 Scope: `verilator-bin` (recipe A), `edapack-common` build pipeline (one new
 target kind), and the consumers — `pyhdl-if`, `dv-flow-libhdlsim` (recipe B)
@@ -378,8 +378,10 @@ to run.
 | | | Probe (`39879952731`, `windows-probe.yml`): bug reproduced with a five-line program and with MSYS2's own verilator package; `-std=gnu++17` fixes it |
 | | | Run 2 (`39880200411`): build and MSYS2-shell smoke pass. From pwsh, `verilator.cmd` found the script but Verilator mislocated its root, because MSYS2 perl's FindBin does not split a `\` path |
 | | | Run 3 (`39881909472`): **green.** The pwsh path works: `Get-Command`/`shutil.which` find `verilator.cmd`, and `--binary` builds and runs. `verilator_bin.exe` imports only Windows system DLLs, and `bin/` ships none. Tarball is `verilator-windows-x86_64-5.053.20261023.tar.gz`, 14 MB |
-| 2 Pipeline | in progress | edapack-common branch `windows-msys2`: `kind: msys2`, `optional`, and `ec_platform_json` reporting `os: windows, libc: ucrt`. verilator-bin `ci.yml` adds `windows-x86_64` to both tracks. The spike workflows are deleted, and the smoke test now also runs `verilator.cmd` through `cmd.exe`. The manifest's `inputs` still lists bitwuzla on Windows, deliberately: it is the release's resolved input set, shared by every platform, and the merge requires equal digests |
-| 3–7 | not started | |
+| 2 Pipeline | **done** 2026-10-23 | edapack-common branch `windows-msys2`: `kind: msys2`, `optional`, and `ec_platform_json` reporting `os: windows, libc: ucrt`. verilator-bin `ci.yml` adds `windows-x86_64` to both tracks. The spike workflows are deleted, and the smoke test now also runs `verilator.cmd` through `cmd.exe`. The manifest's `inputs` still lists bitwuzla on Windows, deliberately: it is the release's resolved input set, shared by every platform, and the merge requires equal digests |
+| | | Validation run `39889873061` (push, edapack-common@windows-msys2): all 7 targets green, including `windows-x86_64`; publish was skipped (push). The Windows leg fetched edapack-common's scripts from `main`, so its platform block was still the old one; the fix took effect once the branch merged |
+| 3 Merge + `v1` | **done** 2026-10-23 | edapack-common `main` and `v1` are at `5d6ee3f`. verilator-bin `ci.yml` is back on `@v1`. The first Windows asset publishes with the next scheduled or dispatched run |
+| 4–7 | not started | 4: composite action and libhdlsim fixes. 5–6: pyhdl-if port and CI. MSYS2's verilator 5.050 package plus gnu++17 can unblock 5 before then |
 
 Each step is independently checkable. Steps 1–3 are verilator-bin and
 edapack-common; steps 4–6 are the consumers.

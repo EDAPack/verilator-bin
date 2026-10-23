@@ -80,7 +80,7 @@ jobs:
     if: >-
       github.event_name != 'push' &&
       (github.event_name != 'workflow_dispatch' || inputs.track != 'dev')
-    uses: edapack/edapack-common/.github/workflows/build-release.yml@windows-msys2
+    uses: edapack/edapack-common/.github/workflows/build-release.yml@v1
     with:
       package: verilator-bin
       track: release
@@ -101,7 +101,7 @@ jobs:
   dev:
     if: >-
       github.event_name != 'workflow_dispatch' || inputs.track != 'release'
-    uses: edapack/edapack-common/.github/workflows/build-release.yml@windows-msys2
+    uses: edapack/edapack-common/.github/workflows/build-release.yml@v1
     with:
       package: verilator-bin
       track: dev

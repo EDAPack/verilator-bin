@@ -1,0 +1,17 @@
+diff --git a/src/V3AssertNfa.cpp b/src/V3AssertNfa.cpp
+index f78eb0f..249ccf2 100644
+--- a/src/V3AssertNfa.cpp
++++ b/src/V3AssertNfa.cpp
+@@ -2341,8 +2341,10 @@ private:
+         AstNodeExpr* throughoutRejectp = nullptr;  // Reject when a throughout guard drops
+     };
+ 
+-    static constexpr int kDepthUnreachable = -1;
+-    static constexpr int kDepthAmbiguous = -2;
++    // Sentinels stored in the attempt-depth vector. An enum rather than
++    // 'static constexpr int' as enumerators are never odr-used, so this needs
++    // no out-of-line definition under Verilator's C++14 floor.
++    enum DepthSentinel : int { kDepthUnreachable = -1, kDepthAmbiguous = -2 };
+     using OutcomeBuckets = std::map<int, AstNodeExpr*>;
+ 
+     static AstNodeExpr* boolToCount(LowerCtx& c, AstNodeExpr* condp) {

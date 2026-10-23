@@ -22,27 +22,28 @@ jobs:
         update: false
         install: make perl mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-verilator
 
-    - name: Plain std::string move, per -std / -O
-      run: |
-        g++ --version | head -1
-        echo | g++ -dM -E -x c++ - | grep __cplusplus
-        cat > t.cpp <<'CPP'
-        #include <string>
-        #include <utility>
-        #include <cstdio>
-        std::string f(std::string s) { std::string t{std::move(s)}; return t + "!"; }
-        int main() { std::puts(f("hi").c_str()); }
-        CPP
-        for o in -Os -O2; do for s in "" -std=gnu++17 -std=gnu++20; do
-          printf '%-6s %-14s ' "$o" "${s:-default}"
-          if g++ $o $s t.cpp -o t.exe 2>err.txt && ./t.exe >/dev/null; then echo OK; else echo FAIL; head -3 err.txt; fi
-        done; done
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.14"
 
-    - name: MSYS2's own verilator package, --binary smoke (per -std)
+    # verilator.cmd candidates, exercised from native PowerShell against the
+    # MSYS2 verilator package (same Perl FindBin path as our release).
+    - name: Shim from PowerShell
+      shell: pwsh
       run: |
-        verilator --version
-        for s in "" -std=gnu++17 -std=gnu++20; do
-          rm -rf obj_dir
-          printf '== CFLAGS=%s\n' "${s:-default}"
-          if verilator --binary tests/smoke.sv -o simv ${s:+-CFLAGS $s} > v.log 2>&1 && ./obj_dir/simv.exe | grep -q 'Hello World'; then echo OK; else echo FAIL; grep -m5 -E 'error|undefined' v.log; fi
-        done
+        $msys = (msys2 -c 'cygpath -m /').Trim()
+        $bin = "$msys\ucrt64\bin"
+        Set-Content -Path "$bin\verilator.cmd" -Value "@setlocal`r`n@set `"VLT_BIN=%~dp0`"`r`n@perl `"%VLT_BIN:\=/%verilator`" %*" -NoNewline
+        Get-Content "$bin\verilator.cmd"
+        $env:PATH = "$bin;$msys\usr\bin;$env:PATH"
+        python -c "import shutil; print('shutil.which:', shutil.which('verilator'))"
+        python -c "import subprocess,shutil; r=subprocess.run([shutil.which('verilator'),'--version']); print('subprocess rc', r.returncode)"
+        verilator --binary tests\smoke.sv -o simv -CFLAGS -std=gnu++17
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        .\obj_dir\simv.exe | Tee-Object -FilePath out.log
+        if (-not (Select-String -Quiet -Path out.log -Pattern 'Hello World')) { exit 1 }
+        # exit status must propagate through the shim
+        verilator --no-such-option 2>$null
+        "bad-option rc: $LASTEXITCODE"
+        if ($LASTEXITCODE -eq 0) { exit 1 }
+

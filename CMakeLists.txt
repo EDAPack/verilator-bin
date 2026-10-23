@@ -380,6 +380,13 @@ if(IS_WINDOWS)
       COMMAND ${BASH_EXECUTABLE} -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
       COMMAND ${BASH_EXECUTABLE} -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
       COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
+      # Models default to gnu++17. MSYS2's GCC 16.2 defaults to gnu++20, and at
+      # -Os (which verilated.mk uses for the runtime) leaves the std::string
+      # move constructor undefined at link time -- even for a trivial program,
+      # and with MSYS2's own verilator package too. gnu++17 links. Verilator's
+      # configure leaves CFG_CXXFLAGS_STD empty when the compiler's default
+      # already suffices, so pin it here. A user -CFLAGS -std= still wins.
+      COMMAND ${BASH_EXECUTABLE} -c "sed -i 's%^CFG_CXXFLAGS_STD =.*$%CFG_CXXFLAGS_STD = -std=gnu++17%' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && grep -q '^CFG_CXXFLAGS_STD = -std=gnu++17' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk"
       # A copy, not a symlink: a symlink does not survive extraction on a
       # Windows machine without symlink privilege.
       COMMAND ${CMAKE_COMMAND} -E echo "Creating include copy for Windows Verilator compatibility..."

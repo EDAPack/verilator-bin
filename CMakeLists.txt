@@ -49,6 +49,26 @@ if(WIN32 OR MSYS OR CYGWIN)
   endif()
 endif()
 
+# Bitwuzla (Verilator's bundled SMT solver) is not built on MinGW: the
+# Windows build exists to test pyhdl-if, which needs no constraint solving,
+# and dropping it removes gmp/mpfr/meson/ninja from the Windows build. Without
+# it Verilator falls back to a solver found on PATH at run time.
+# See docs/design/windows.md (D9).
+if(IS_MINGW)
+  set(_with_bitwuzla_default OFF)
+else()
+  set(_with_bitwuzla_default ON)
+endif()
+option(WITH_BITWUZLA "Build Bitwuzla and configure Verilator with it" ${_with_bitwuzla_default})
+if(WITH_BITWUZLA)
+  set(VERILATOR_SOLVER_ARG "--with-solver=bitwuzla")
+  set(VERILATOR_DEPENDS_ARG DEPENDS bitwuzla)
+else()
+  set(VERILATOR_SOLVER_ARG "")
+  set(VERILATOR_DEPENDS_ARG "")
+endif()
+message(STATUS "WITH_BITWUZLA: ${WITH_BITWUZLA}")
+
 # Determine Bitwuzla version/branch
 if(BITWUZLA_TAG)
   set(BITWUZLA_GIT_TAG ${BITWUZLA_TAG})
@@ -72,6 +92,7 @@ endif()
 message(STATUS "Building with Bitwuzla: ${BITWUZLA_GIT_TAG}")
 message(STATUS "Building with Verilator: ${VERILATOR_GIT_TAG}")
 
+if(WITH_BITWUZLA)
 # Create a Python virtual environment for meson/ninja
 if(IS_WINDOWS)
   ExternalProject_Add(python-venv
@@ -234,15 +255,25 @@ else()
   )
 endif()
 
+endif() # WITH_BITWUZLA
+
 # Build Verilator
 if(IS_MINGW)
-  # MinGW-specific build  
+  # MinGW-specific build
+  #
+  # CXXFLAGS=-std=gnu++17 for the same reason as the Unix branch below.
+  #
+  # LDFLAGS=-static links libstdc++/libgcc/winpthread into verilator_bin.exe,
+  # so bin/ ships no runtime DLLs. A bundled libstdc++-6.dll on PATH would be
+  # loaded by the user's own simv.exe in place of their toolchain's, and fail
+  # with "entry point not found". Both go on the build, not configure (see the
+  # Unix branch): src/Makefile_obj.in appends to the environment values.
   ExternalProject_Add(verilator
-    DEPENDS bitwuzla
+    ${VERILATOR_DEPENDS_ARG}
     GIT_REPOSITORY https://github.com/verilator/verilator.git
     GIT_TAG ${VERILATOR_GIT_TAG}
-    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} --with-solver=bitwuzla"
-    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make -j${NPROC}"
+    CONFIGURE_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && autoconf && ./configure --prefix=${CMAKE_INSTALL_PREFIX} ${VERILATOR_SOLVER_ARG}"
+    BUILD_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && CXXFLAGS=-std=gnu++17 LDFLAGS=-static make -j${NPROC}"
     INSTALL_COMMAND ${BASH_EXECUTABLE} -c "cd <SOURCE_DIR> && make install"
     BUILD_IN_SOURCE 1
   )
@@ -349,8 +380,13 @@ if(IS_WINDOWS)
       COMMAND ${BASH_EXECUTABLE} -c "test -d ${CMAKE_INSTALL_PREFIX}/share/verilator/bin && strip ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/* 2>/dev/null || true"
       COMMAND ${BASH_EXECUTABLE} -c "rm -f ${CMAKE_INSTALL_PREFIX}/share/verilator/bin/*_dbg 2>/dev/null || true"
       COMMAND ${BASH_EXECUTABLE} -c "test -f ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk && sed -i 's%PYTHON3 =.*$%PYTHON3 = python3%g' ${CMAKE_INSTALL_PREFIX}/share/verilator/include/verilated.mk || true"
-      COMMAND ${CMAKE_COMMAND} -E echo "Creating include symlink for Windows Verilator compatibility..."
-      COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX} && rm -rf include && ln -s share/verilator/include include"
+      # A copy, not a symlink: a symlink does not survive extraction on a
+      # Windows machine without symlink privilege.
+      COMMAND ${CMAKE_COMMAND} -E echo "Creating include copy for Windows Verilator compatibility..."
+      COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX} && rm -rf include && cp -r share/verilator/include include"
+      # verilator.cmd lets cmd, PowerShell and native Python (shutil.which,
+      # subprocess) run the extensionless Perl `verilator` script.
+      COMMAND ${BASH_EXECUTABLE} -c "cp -f ${CMAKE_SOURCE_DIR}/scripts/verilator.cmd ${CMAKE_INSTALL_PREFIX}/bin/verilator.cmd"
       COMMAND ${CMAKE_COMMAND} -E echo "Copying Verilator helper scripts to bin directory..."
       COMMAND ${BASH_EXECUTABLE} -c "cd ${CMAKE_INSTALL_PREFIX}/bin && cp -f ../share/verilator/bin/verilator_includer ../share/verilator/bin/verilator_ccache_report . 2>/dev/null || true"
   )

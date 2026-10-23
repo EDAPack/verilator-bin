@@ -60,6 +60,19 @@ case "$os" in
         ;;
 esac
 
+# --- MSYS2 provisioning checks (packages are installed by the caller) -------
+if [ "$IS_WINDOWS" = "1" ] && [ -n "${MINGW_PREFIX:-}" ]; then
+    # flex installs FlexLexer.h into the MSYS /usr/include, which the MinGW
+    # gcc does not search.
+    if [ ! -f "$MINGW_PREFIX/include/FlexLexer.h" ]; then
+        [ -f /usr/include/FlexLexer.h ] || ec_die "FlexLexer.h not found: install the msys 'flex' package"
+        cp -v /usr/include/FlexLexer.h "$MINGW_PREFIX/include/FlexLexer.h"
+    fi
+    for _t in gcc g++ make autoconf flex bison perl python3 cmake; do
+        command -v "$_t" >/dev/null 2>&1 || ec_die "missing tool '$_t' (see scripts/msys2-packages.txt)"
+    done
+fi
+
 # --- resolved input commits -------------------------------------------------
 vlt_sha="$(ec_input_get verilator resolved_sha)"
 bwz_sha="$(ec_input_get bitwuzla resolved_sha)"
@@ -89,11 +102,9 @@ cmake --build "$build_dir" -j"$jobs"
 # --- Windows runtime DLLs ---------------------------------------------------
 if [ "$IS_WINDOWS" = "1" ]; then
     mkdir -p "$release_root/bin"
-    if echo "$os" | grep -q "MINGW\|MSYS"; then
-        for pat in libgcc_s_ libstdc++- libwinpthread- libgmp- libmpfr-; do
-            cp -v /mingw*/bin/${pat}*.dll "$release_root/bin/" 2>/dev/null || true
-        done
-    elif echo "$os" | grep -q "CYGWIN"; then
+    # MinGW: nothing to copy. verilator_bin.exe is linked -static and there is
+    # no bundled solver (CMakeLists.txt, WITH_BITWUZLA), so bin/ has no DLLs.
+    if echo "$os" | grep -q "CYGWIN"; then
         for pat in cyggcc_s- cygstdc++- cygwin1 cyggmp- cygmpfr-; do
             cp -v /usr/bin/${pat}*.dll "$release_root/bin/" 2>/dev/null || true
         done

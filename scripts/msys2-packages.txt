@@ -1,0 +1,15 @@
+# MSYS2 packages needed to build verilator-bin on Windows (UCRT64).
+# One per line; read by CI (setup-msys2 `install:`) and docs/design/windows.md.
+base-devel
+git
+flex
+bison
+autoconf
+automake
+help2man
+tar
+make
+perl
+mingw-w64-ucrt-x86_64-toolchain
+mingw-w64-ucrt-x86_64-cmake
+mingw-w64-ucrt-x86_64-python

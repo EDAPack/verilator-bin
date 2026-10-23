@@ -1,0 +1,93 @@
+# TEMPORARY -- docs/design/windows.md §6 step 1 (the spike).
+#
+# Builds verilator-bin on a native Windows runner under MSYS2 UCRT64, x86_64
+# only, without Bitwuzla, by calling scripts/build.sh directly rather than
+# through edapack-common's build-release.yml (which has no Windows path yet).
+# Publishes nothing: the tarball is uploaded as a run artifact only.
+#
+# Delete this file once the `kind: msys2` target in edapack-common replaces it.
+name: Windows spike
+
+on:
+  push:
+    branches: [windows-spike]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/checkout@v4
+      with:
+        repository: edapack/edapack-common
+        path: packages/edapack-common
+
+    - name: Read MSYS2 package list
+      shell: pwsh
+      run: |
+        $pk = (Get-Content scripts/msys2-packages.txt | Where-Object { $_ -and -not $_.StartsWith('#') }) -join ' '
+        "MSYS2_PACKAGES=$pk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: UCRT64
+        update: false
+        install: ${{ env.MSYS2_PACKAGES }}
+
+    - name: Build
+      env:
+        EC_IMAGE_NAME: windows-x86_64
+        EC_TRACK: dev
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -o pipefail
+        export SRC_DIR="$(cygpath -u "$GITHUB_WORKSPACE")"
+        export WORK_DIR="$SRC_DIR/.build"
+        export OUT_DIR="$SRC_DIR/dist"
+        export EC_COMMON="$SRC_DIR/packages/edapack-common"
+        uname -a; gcc --version | head -1; python3 --version
+        bash scripts/build.sh 2>&1 | tee build.log
+
+    - name: Inspect the install
+      run: |
+        r=.build/release/verilator
+        ls -la $r $r/bin
+        echo "--- DLLs verilator_bin.exe imports (expect only Windows system DLLs):"
+        objdump -p $r/bin/verilator_bin.exe | grep 'DLL Name' | sort -u
+        echo "--- DLLs shipped in bin/ (expect none):"
+        ls $r/bin/*.dll 2>/dev/null || echo "(none)"
+
+    # The path native Python / dv-flow-libhdlsim will take: no MSYS2 shell,
+    # just the MSYS2 tool directories on PATH, and verilator via verilator.cmd.
+    - name: Native (PowerShell) run through verilator.cmd
+      shell: pwsh
+      run: |
+        $msys = "${{ steps.msys2.outputs.msys2-location }}"
+        $root = "$env:GITHUB_WORKSPACE\.build\release\verilator"
+        $env:PATH = "$root\bin;$msys\ucrt64\bin;$msys\usr\bin;$env:PATH"
+        Get-Command verilator | Format-List Source
+        python -c "import shutil; print('shutil.which:', shutil.which('verilator'))"
+        verilator --version
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        New-Item -ItemType Directory -Force native_smoke | Out-Null
+        Set-Location native_smoke
+        verilator --binary ..\tests\smoke.sv -o simv
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        .\obj_dir\simv.exe | Tee-Object -FilePath out.log
+        if (-not (Select-String -Quiet -Path out.log -Pattern 'Hello World')) { exit 1 }
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: verilator-windows-x86_64-spike
+        path: |
+          build.log
+          dist/
+        if-no-files-found: warn

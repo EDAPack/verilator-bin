@@ -44,6 +44,9 @@ name: CI
 # (arm64). aarch64 uses GitHub's arm Linux runners (free on public repos).
 on:
   push:
+    # TEMPORARY (windows-spike branch only): keep the six-target build off
+    # while the Windows spike iterates. Remove before merging.
+    branches-ignore: [windows-spike]
   schedule:
     - cron: "0 12 * * 0"   # Sunday 12:00 UTC — publishes only if inputs changed
   workflow_dispatch:

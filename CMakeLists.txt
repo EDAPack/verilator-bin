@@ -197,9 +197,14 @@ endif()
 set(UVM_VERSION "1800.2-2020.3.2" CACHE STRING "Accellera UVM version to ship")
 set(UVM_URL "https://www.accellera.org/images/downloads/standards/uvm/1800.2-2020.3.2%20Release.gz"
     CACHE STRING "Download URL for the Accellera UVM release named by UVM_VERSION")
+# Checksum of the asset at UVM_URL: an error page served in its place then fails
+# at download verification rather than later at extract. Update with the URL.
+set(UVM_SHA256 "4664ac015f23c72106dd785906aa874d70932ea63f74b85de1e32fa5339c15eb"
+    CACHE STRING "SHA-256 of the asset at UVM_URL")
 
 ExternalProject_Add(uvm
   URL ${UVM_URL}
+  URL_HASH SHA256=${UVM_SHA256}
   # The 2020.3.2 asset is a tarball served with a bare '.gz' name; give it a
   # name CMake will recognize as one so it is extracted rather than just
   # decompressed.

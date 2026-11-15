@@ -61,7 +61,7 @@ on:
         description: "Build a specific Verilator ref (tag/branch/sha), e.g. v5.038"
         type: string
       input_overrides:
-        description: 'JSON map of dependency overrides, e.g. {"bitwuzla":"0.6.0"}'
+        description: 'JSON map of dependency overrides, e.g. {"z3":"z3-4.15.4"}'
         type: string
         default: "{}"
       force:

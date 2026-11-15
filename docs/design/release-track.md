@@ -128,9 +128,9 @@ core:
   release_notes: Changes                # upstream changelog, read at the tag
 
 dependencies:
-  - name: bitwuzla
-    repo: https://github.com/bitwuzla/bitwuzla
-    policy: branch:main
+  - name: z3
+    repo: https://github.com/Z3Prover/z3
+    policy: 'tag:z3-4.15.4'
 ```
 
 * `release_policy` — how to find the newest upstream release. Absent ⇒ the
@@ -146,8 +146,8 @@ dependencies:
   is a branch. For Verilator: `AC_INIT([Verilator],[5.051 ...])` → `5.051`.
   Fetched via the GitHub contents API, the same way the legacy workflow did it.
 
-Dependencies (bitwuzla) keep their normal policy on **both** tracks — a release
-build pairs the pinned Verilator tag with the current bitwuzla, and the manifest
+Dependencies (z3) keep their normal policy on **both** tracks — a release
+build pairs the pinned Verilator tag with the current z3, and the manifest
 records exactly what was used.
 
 ### 4.3 `build-release.yml` changes

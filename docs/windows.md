@@ -12,7 +12,7 @@ Why it exists, the decisions behind it, and its build history are in
 | | Windows | Linux/macOS |
 |---|---|---|
 | Architectures | x86_64 only | x86_64, aarch64 / arm64 |
-| SMT solver (constrained `randomize()`) | **none bundled.** Verilator uses a solver found on `PATH` at run time | Bitwuzla bundled |
+| SMT solver (constrained `randomize()`) | **none bundled.** Verilator uses a solver found on `PATH` at run time | Z3 bundled |
 | Compiler for your models | **you install it** (MSYS2 UCRT64 GCC, below) | system compiler |
 | Default C++ standard for models | `-std=gnu++17`, pinned (see below) | Verilator's configure default |
 | UVM | shipped (`share/uvm`); the UVM DPI layer is not tested on Windows (mingw has no POSIX `<regex.h>`) | shipped and tested |
@@ -117,6 +117,6 @@ verilator --binary tests\smoke.sv -o simv
   `CFG_CXXFLAGS_STD = -std=gnu++17`. To pick a standard yourself, pass
   `-CFLAGS -std=…`, but gnu++20 will hit this bug until MSYS2's GCC fixes it.
 * **No bundled solver.** Constrained randomization needs an SMT solver
-  (Bitwuzla, Z3 or cvc5) on `PATH`. MSYS2 ships `mingw-w64-ucrt-x86_64-z3`.
+  (Z3, cvc5 or Bitwuzla) on `PATH`. MSYS2 ships `mingw-w64-ucrt-x86_64-z3`.
 * **Runtime VPI library loading** (`+verilator+vpi+…`) is not supported by
   upstream Verilator on Windows.

@@ -6,9 +6,10 @@ class Pkt;
 endclass
 
 module rand_top;
+  Pkt p;
+  bit [7:0] s;
   initial begin
-    Pkt p = new;
-    bit [7:0] s;
+    p = new;
     repeat (5) begin
       if (p.randomize() != 1) $fatal(1, "randomize() failed");
       s = p.a + p.b;

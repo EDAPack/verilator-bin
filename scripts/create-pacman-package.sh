@@ -25,7 +25,7 @@ cat > "${PKG_DIR}/PKGBUILD" <<EOF
 pkgname=mingw-w64-x86_64-verilator-bin
 pkgver=${VERSION}
 pkgrel=1
-pkgdesc="Verilator - the fastest Verilog/SystemVerilog simulator (binary distribution with Bitwuzla)"
+pkgdesc="Verilator - the fastest Verilog/SystemVerilog simulator (binary distribution with Z3)"
 arch=('any')
 url="https://github.com/edapack/verilator-bin"
 license=('LGPL3' 'Artistic2.0')
@@ -59,7 +59,7 @@ EOF
 cat > "${PKG_DIR}/.PKGINFO" <<EOF
 pkgname = mingw-w64-x86_64-verilator-bin
 pkgver = ${VERSION}-1
-pkgdesc = Verilator - the fastest Verilog/SystemVerilog simulator (binary distribution with Bitwuzla)
+pkgdesc = Verilator - the fastest Verilog/SystemVerilog simulator (binary distribution with Z3)
 url = https://github.com/edapack/verilator-bin
 builddate = $(date +%s)
 packager = Verilator Binary Build System

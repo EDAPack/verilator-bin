@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # verilator-bin build driver.
 #
-# Builds the exact verilator + bitwuzla commits resolved by edapack-common's
+# Builds the exact verilator + z3 commits resolved by edapack-common's
 # resolve-inputs.py (passed in via $CANDIDATE_JSON, or resolved locally), so the
 # shipped manifest.json truthfully records what was built. The heavy lifting is
-# in CMakeLists.txt (ExternalProject fetch/build/install of verilator+bitwuzla);
+# in CMakeLists.txt (ExternalProject fetch/build/install of verilator+z3);
 # this script wires in the resolved refs and the shared release tail (skills,
 # export.envrc, manifest, tarball).
 #
@@ -40,9 +40,6 @@ plat="${EC_IMAGE_NAME:-}"
 if [ "${EC_INSTALL_DEPS:-0}" = "1" ] && [ "$os" = "Linux" ]; then
     yum install -y glibc-static wget flex bison jq help2man \
         cmake3 autoconf make gcc gcc-c++ git perl-core patchelf || true
-    # prefer the manylinux cpython for meson/ninja (used by the bitwuzla build)
-    [ -d /opt/python/cp312-cp312/bin ] && export PATH=/opt/python/cp312-cp312/bin:$PATH
-    pip3 install meson ninja || true
     if [ -f /usr/bin/cmake3 ] && [ ! -f /usr/bin/cmake ]; then
         ln -s /usr/bin/cmake3 /usr/bin/cmake || true
     fi
@@ -75,10 +72,10 @@ fi
 
 # --- resolved input commits -------------------------------------------------
 vlt_sha="$(ec_input_get verilator resolved_sha)"
-bwz_sha="$(ec_input_get bitwuzla resolved_sha)"
-[ -n "$vlt_sha" ] && [ -n "$bwz_sha" ] || ec_die "missing resolved input SHAs in candidate"
+z3_sha="$(ec_input_get z3 resolved_sha)"
+[ -n "$vlt_sha" ] && [ -n "$z3_sha" ] || ec_die "missing resolved input SHAs in candidate"
 ec_log "verilator @ $vlt_sha"
-ec_log "bitwuzla  @ $bwz_sha"
+ec_log "z3        @ $z3_sha"
 
 # --- configure + build (CMake ExternalProject installs into the prefix) -----
 release_root="$WORK_DIR/release/verilator"
@@ -89,7 +86,7 @@ mkdir -p "$build_dir"
 cmake -S "$SRC_DIR" -B "$build_dir" \
     -DUSE_LATEST_BRANCH=OFF \
     -DVERILATOR_TAG="$vlt_sha" \
-    -DBITWUZLA_TAG="$bwz_sha" \
+    -DZ3_TAG="$z3_sha" \
     -DCMAKE_INSTALL_PREFIX="$release_root"
 
 if [ "$REMOVE_PREGEN" = "1" ]; then
@@ -103,9 +100,9 @@ cmake --build "$build_dir" -j"$jobs"
 if [ "$IS_WINDOWS" = "1" ]; then
     mkdir -p "$release_root/bin"
     # MinGW: nothing to copy. verilator_bin.exe is linked -static and there is
-    # no bundled solver (CMakeLists.txt, WITH_BITWUZLA), so bin/ has no DLLs.
+    # no bundled solver (CMakeLists.txt, WITH_Z3), so bin/ has no DLLs.
     if echo "$os" | grep -q "CYGWIN"; then
-        for pat in cyggcc_s- cygstdc++- cygwin1 cyggmp- cygmpfr-; do
+        for pat in cyggcc_s- cygstdc++- cygwin1; do
             cp -v /usr/bin/${pat}*.dll "$release_root/bin/" 2>/dev/null || true
         done
     fi

@@ -220,6 +220,9 @@ as `PyRun_*File`.
    * Verilator then falls back to whatever SMT solver is on `PATH` at run time,
      which is the standard upstream behaviour. `randomize()` with constraints
      needs the user to supply one; no pyhdl-if test exercises that.
+   * 2026-11: the other targets now bundle Z3 instead of Bitwuzla (no GMP,
+     MPFR or meson). Windows still bundles none; the CMake option is now
+     `WITH_Z3`, default OFF on MinGW.
 
 ### 4.2 edapack-common: `kind: msys2`
 
